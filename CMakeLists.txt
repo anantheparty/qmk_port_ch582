@@ -34,12 +34,22 @@ find_program(MERGEHEX_PATH NAMES mergehex PATHS ${NRF_BIN_PATH} REQUIRED)
 message(STATUS "Found mergehex: ${MERGEHEX_PATH}")
 
 if(NOT DEFINED TOOLCHAIN_PREFIX)
-    if(EXISTS "${CMAKE_CURRENT_LIST_DIR}/utils/${CMAKE_HOST_SYSTEM_NAME}/riscv-none-elf-gcc")
-        set(TOOLCHAIN_PREFIX riscv-none-elf)
-    elseif(EXISTS "${CMAKE_CURRENT_LIST_DIR}/utils/${CMAKE_HOST_SYSTEM_NAME}/riscv-none-embed-gcc")
-        set(TOOLCHAIN_PREFIX riscv-none-embed)
+    if(EXISTS "${CMAKE_CURRENT_LIST_DIR}/utils/${CMAKE_HOST_SYSTEM_NAME}/riscv-wch-elf-gcc")
+        set(TOOLCHAIN_PREFIX riscv-wch-elf)
     endif()
 endif()
+
+if(NOT DEFINED ADDITIONAL_TOOLCHAIN_PATH)
+    if(EXISTS "${CMAKE_CURRENT_LIST_DIR}/utils/${CMAKE_HOST_SYSTEM_NAME}/riscv-wch-elf-gcc/bin")
+        set(ADDITIONAL_TOOLCHAIN_PATH "${CMAKE_CURRENT_LIST_DIR}/utils/${CMAKE_HOST_SYSTEM_NAME}/riscv-wch-elf-gcc/bin/")
+    elseif(EXISTS "/Users/kamico/.local/opt/RISC-V Embedded GCC12/bin")
+        set(ADDITIONAL_TOOLCHAIN_PATH "/Users/kamico/.local/opt/RISC-V Embedded GCC12/bin")
+    endif()
+endif()
+
+set(TOOLCHAIN_PREFIX riscv-wch-elf)
+message(STATUS "TOOLCHAIN_PREFIX = ${TOOLCHAIN_PREFIX}")
+message(STATUS "ADDITIONAL_TOOLCHAIN_PATH = ${ADDITIONAL_TOOLCHAIN_PATH}")
 
 if(NOT DEFINED ADDITIONAL_TOOLCHAIN_PATH)
     if(EXISTS "${CMAKE_CURRENT_LIST_DIR}/utils/${CMAKE_HOST_SYSTEM_NAME}/riscv-none-elf-gcc/bin")
@@ -265,9 +275,12 @@ else()
         --specs=nosys.specs
     )
 
-    target_precompile_headers(${keyboard}.elf PUBLIC
-        ${KEYBOARD_ROOT}/qmk_config.h
-    )
+    if(EXISTS "${KEYBOARD_ROOT}/qmk_config.h")
+        target_precompile_headers(${keyboard}.elf PUBLIC
+            ${KEYBOARD_ROOT}/qmk_config.h
+        )
+    endif()
+    
     target_precompile_headers(${keyboard}_IAP.elf PUBLIC
         ${KEYBOARD_ROOT}/qmk_config.h
     )

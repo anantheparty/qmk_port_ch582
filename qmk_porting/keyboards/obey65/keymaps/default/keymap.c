@@ -47,3 +47,13 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         KC_NO,   KC_NO,   KC_NO,   KC_NO,   KC_NO,   KC_NO,   KC_NO,   KC_NO,   KC_NO,   KC_NO,   KC_NO,   KC_NO,   KC_NO,   KC_NO,   KC_NO
     )
 }; 
+
+const uint32_t unicode_map[] = {
+    [0x00] = 0x03B1, // α
+    [0x01] = 0x03B2, // β
+    [0x02] = 0x03B3, // γ
+    [0x03] = 0x03C0, // π
+    [0x04] = 0x2665, // ♥
+    [0x05] = 0x2192, // →
+    [0x06] = 0x00A5, // ¥
+};
