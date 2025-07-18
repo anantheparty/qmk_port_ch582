@@ -3,7 +3,7 @@ chcp 65001 >nul
 setlocal
 
 REM 设置默认值
-set KEYBOARD=m2wired
+set KEYBOARD=obey65
 set KEYMAP=default
 
 REM 如果有传入参数就覆盖默认值
