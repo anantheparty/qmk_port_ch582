@@ -65,6 +65,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define BATTERY_INDICATOR_START_INDEX 3
 #define BATTERY_INDICATOR_END_INDEX   0
 
+// 大写锁定LED引脚定义
+#define LED_CAPS_LOCK_PIN B17
+#define LED_PIN_ON_STATE 1
+
 /* define if matrix has ghost */
 // #define MATRIX_HAS_GHOST
 
