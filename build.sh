@@ -14,7 +14,7 @@ if [ ! -z "$2" ]; then
   KEYMAP="$2"
 fi
 
-mkdir build.old
+mkdir -p build.old
 mv obey65_factory_*.hex build.old/
 mv obey65_upgrade_*.uf2 build.old/
 

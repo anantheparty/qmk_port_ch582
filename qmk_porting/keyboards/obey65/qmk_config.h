@@ -37,17 +37,27 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define DYNAMIC_KEYMAP_LAYER_COUNT 10
 
 #define DIODE_DIRECTION  COL2ROW
+// 使用ESC键作为BOOTMAGIC触发键（第0行第0列）
 #define BOOTMAGIC_ROW    0
 #define BOOTMAGIC_COLUMN 0
-#define RGBLED_NUM 60
+#define RGBLED_NUM 4
 // #define PERMISSIVE_HOLD
 #define HOLD_ON_OTHER_KEY_PRESS
 
+// 禁用自动DFU模式，让你有机会手动拖入uf2文件
 #define EARLY_INIT_PERFORM_BOOTLOADER_JUMP FALSE
 
-// 暂时不启用RGB灯光控制
-// #define WS2812_EN_PIN   A5
-// #define WS2812_EN_LEVEL 1
+// 启用简单的bootloader
+#define BOOTLOADER_ENABLE
+#define BOOTLOADER_SIZE 0x6000
+
+// Bootloader配置说明：
+// 1. 首次使用：使用 obey65_factory_*.hex 通过串口刷写
+// 2. 后续升级：使用 obey65_upgrade_*.uf2 通过UF2方式
+// 3. 进入bootloader：按住ESC键插入USB，或使用 KC_BOOTLOADER_JUMP 按键
+
+#define WS2812_EN_PIN   A11
+#define WS2812_EN_LEVEL 1
 
 #define BATTERY_MEASURE_PIN A4
 #define POWER_DETECT_PIN    B12
@@ -59,7 +69,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 // #define MATRIX_HAS_GHOST
 
 /* Set 0 if debouncing isn't needed */
-#define DEBOUNCE 10
+#define DEBOUNCE 0
 
 /*
  * Feature disable options
