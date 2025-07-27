@@ -15,8 +15,15 @@ if [ ! -z "$2" ]; then
 fi
 
 mkdir -p build.old
-mv obey65_factory_*.hex build.old/
-mv obey65_upgrade_*.uf2 build.old/
+
+# 移动旧文件（如果存在）
+if ls obey65_factory_*.hex 1> /dev/null 2>&1; then
+  mv obey65_factory_*.hex build.old/
+fi
+
+if ls obey65_upgrade_*.uf2 1> /dev/null 2>&1; then
+  mv obey65_upgrade_*.uf2 build.old/
+fi
 
 # 进入 build 目录
 cd "$(dirname "$0")/build"
