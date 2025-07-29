@@ -18,6 +18,31 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include QMK_KEYBOARD_H
 #include "led.h"
 
+#ifdef RGB_MATRIX_ENABLE
+// RGB Matrix LED 位置配置 - 四颗 LED 竖着排列在右 CTRL 右侧
+led_config_t g_led_config = { {
+    // Key Matrix to LED Index
+    {NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED},
+    {NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED},
+    {NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED},
+    {NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED},
+    {NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED}
+}, {
+    // LED Index to Physical Position - 四颗 LED 竖着排列在键盘右侧
+    // LED 0: 最上面
+    {220, 10},
+    // LED 1: 第二个
+    {220, 25},
+    // LED 2: 第三个
+    {220, 40},
+    // LED 3: 最下面
+    {220, 55}
+}, {
+    // LED Index to Flag - 所有 LED 都是装饰灯
+    LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW
+} };
+#endif
+
 // 大写锁定LED初始化
 void keyboard_pre_init_kb(void) {
     // 设置大写锁定LED引脚为输出
