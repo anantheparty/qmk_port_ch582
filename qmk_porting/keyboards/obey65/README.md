@@ -74,19 +74,38 @@
 - 软糖雨滴效果 (Jellybean Raindrops)
 
 ### RGB控制按键 (Layer 2)
-在Layer 2中提供了完整的RGB控制：
+在Layer 2中提供了完整的RGB控制和调试功能：
 
+#### 基础RGB控制
 - `RGB_TOG`: 开关RGB灯光
 - `RGB_MOD`: 切换下一个灯光模式
 - `RGB_RMOD`: 切换上一个灯光模式
-- `RGB_HUI`: 增加色相
-- `RGB_HUD`: 减少色相
-- `RGB_SAI`: 增加饱和度
-- `RGB_SAD`: 减少饱和度
-- `RGB_VAI`: 增加亮度
-- `RGB_VAD`: 减少亮度
-- `RGB_SPI`: 增加效果速度
-- `RGB_SPD`: 减少效果速度
+- `RGB_HUI`: 增加色相 (+10)
+- `RGB_HUD`: 减少色相 (-10)
+- `RGB_SAI`: 增加饱和度 (+8)
+- `RGB_SAD`: 减少饱和度 (-8)
+- `RGB_VAI`: 增加亮度 (+4)
+- `RGB_VAD`: 减少亮度 (-4)
+- `RGB_SPI`: 增加效果速度 (+10)
+- `RGB_SPD`: 减少效果速度 (-10)
+
+#### 调试功能
+- `KC_RGB_DEBUG`: RGB调试信息按键
+  - 输出当前RGB Matrix状态
+  - 显示驱动类型 (PWM/SPI)
+  - 显示引脚配置信息
+  
+- `KC_LED_STATUS`: LED状态信息按键
+  - 显示RGB Matrix激活状态
+  - 显示最大亮度值
+  - 显示LED数量
+  - 显示驱动详细信息
+
+#### 调试输出示例
+```
+RGB Debug: RGB Matrix Enabled, PWM Driver, PA11 Pin
+LED Status: RGB Matrix Active, Max Brightness: 32, LED Count: 4, WS2812 PWM TMR2
+```
 
 ## 构建说明
 
@@ -129,3 +148,5 @@
 ## 许可证
 
 本项目采用GPL v2许可证。 
+
+

@@ -278,6 +278,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #define MAX_ENDPOINTS ENDPOINT_TOTAL_ENDPOINTS
 
+#undef LSE_ENABLE
 #if defined LSE_ENABLE && LSE_ENABLE
 #define FREQ_RTC   32768
 #define CLK_OSC32K 0

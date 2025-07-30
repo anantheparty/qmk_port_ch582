@@ -16,7 +16,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include QMK_KEYBOARD_H
+#include "ws2812.h"
 
+#ifndef RGBLED_NUM
+#define RGBLED_NUM 4
+#endif
 // 自定义按键定义
 enum custom_keycodes {
     KC_CUSTOM_0 = SAFE_RANGE,
@@ -24,7 +28,10 @@ enum custom_keycodes {
     KC_CUSTOM_2,
     KC_CUSTOM_3,
     KC_FN,
-    KC_BOOTLOADER_JUMP
+    KC_BOOTLOADER_JUMP,
+    KC_RGB_DEBUG,  // RGB调试按键
+    KC_LED_INIT_LOW,  // LED状态显示按键
+    KC_LED_INIT_HIGH,    // LED初始化按键
 };
 
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
@@ -44,7 +51,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     ),
     [2] = LAYOUT_all(
         // Layer 2: RGB 控制层
-        RGB_TOG, RGB_MOD, RGB_RMOD, RGB_HUI, RGB_HUD, RGB_SAI, RGB_SAD, RGB_VAI, RGB_VAD, RGB_SPI, RGB_SPD, _______, _______, _______, _______,
+        RGB_TOG, RGB_MOD, RGB_RMOD, RGB_HUI, RGB_HUD, RGB_SAI, RGB_SAD, RGB_VAI, RGB_VAD, RGB_SPI, RGB_SPD, KC_RGB_DEBUG, KC_LED_INIT_LOW, KC_LED_INIT_HIGH, _______,
         _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,
         _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,
         _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,
@@ -69,36 +76,82 @@ const uint32_t unicode_map[] = {
     [0x06] = 0x00A5, // ¥
 };
 
-// 自定义按键处理函数
+
+
+// RGB 按键调试处理函数
+bool process_record_user_rgb(uint16_t keycode, keyrecord_t *record) {
+    if (record->event.pressed) {
+        switch (keycode) {
+            case RGB_TOG:
+                SEND_STRING("RGB_TOG: Toggle RGB\r\n");
+                if (!ws2812_power_get()) {
+                    SEND_STRING("WS2812 Power Off\r\n");
+                } else {
+                    SEND_STRING("WS2812 Power On\r\n");
+                }
+                // ws2812_power_toggle(!ws2812_power_get());
+                break;
+            case RGB_MOD:
+                SEND_STRING("RGB_MOD: Next Mode\r\n");
+                break;
+            case RGB_RMOD:
+                SEND_STRING("RGB_RMOD: Previous Mode\r\n");
+                break;
+            case RGB_HUI:
+                SEND_STRING("RGB_HUI: Hue +10\r\n");
+                break;
+            case RGB_HUD:
+                SEND_STRING("RGB_HUD: Hue -10\r\n");
+                break;
+            case RGB_SAI:
+                SEND_STRING("RGB_SAI: Saturation +8\r\n");
+                break;
+            case RGB_SAD:
+                SEND_STRING("RGB_SAD: Saturation -8\r\n");
+                break;
+            case RGB_VAI:
+                SEND_STRING("RGB_VAI: Value +4\r\n");
+                break;
+            case RGB_VAD:
+                SEND_STRING("RGB_VAD: Value -4\r\n");
+                break;
+            case RGB_SPI:
+                SEND_STRING("RGB_SPI: Speed +10\r\n");
+                break;
+            case RGB_SPD:
+                SEND_STRING("RGB_SPD: Speed -10\r\n");
+                break;
+        }
+    }
+    return true;
+}
+
+// 重写 process_record_user 函数来包含 RGB 调试
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
+    // 处理自定义按键
     switch (keycode) {
         case KC_CUSTOM_0:
             if (record->event.pressed) {
-                // 自定义按键0的功能
-                SEND_STRING("Custom Key 0");
+                SEND_STRING("Custom Key 0\r\n");
             }
             return false;
         case KC_CUSTOM_1:
             if (record->event.pressed) {
-                // 自定义按键1的功能
-                SEND_STRING("Custom Key 1");
+                SEND_STRING("Custom Key 1\r\n");
             }
             return false;
         case KC_CUSTOM_2:
             if (record->event.pressed) {
-                // 自定义按键2的功能
-                SEND_STRING("Custom Key 2");
+                SEND_STRING("Custom Key 2\r\n");
             }
             return false;
         case KC_CUSTOM_3:
             if (record->event.pressed) {
-                // 自定义按键3的功能
-                SEND_STRING("Custom Key 3");
+                SEND_STRING("Custom Key 3\r\n");
             }
             return false;
         case KC_FN:
             if (record->event.pressed) {
-                // Fn键功能 - 切换到层1
                 layer_on(1);
             } else {
                 layer_off(1);
@@ -106,10 +159,82 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             return false;
         case KC_BOOTLOADER_JUMP:
             if (record->event.pressed) {
-                // 跳转到bootloader
                 bootloader_jump();
             }
             return false;
+        case KC_RGB_DEBUG:
+            if (record->event.pressed) {
+                SEND_STRING("RGB Debug: ");
+                #ifdef RGB_MATRIX_ENABLE
+                SEND_STRING("RGB Matrix Enabled, ");
+                #else
+                SEND_STRING("RGB Matrix Disabled, ");
+                #endif
+                #ifdef WS2812_DRIVER_PWM
+                SEND_STRING("PWM Driver, ");
+                #endif
+                #ifdef WS2812_DRIVER_SPI
+                SEND_STRING("SPI Driver, ");
+                #endif
+                #if WS2812_DI_PIN == PA10
+                    SEND_STRING("PA10 Pin\r\n");
+                #else
+                    SEND_STRING("PA11 Pin\r\n");
+                #endif
+            }
+            return false;
+        // case KC_LED_STATUS:
+        //     if (record->event.pressed) {
+        //         SEND_STRING("LED Status: ");
+        //         #ifdef RGB_MATRIX_ENABLE
+        //         SEND_STRING("RGB Matrix Active, ");
+        //         #ifdef RGB_MATRIX_MAXIMUM_BRIGHTNESS
+        //         char brightness_str[25];
+        //         snprintf(brightness_str, sizeof(brightness_str), "Max Brightness: %d, ", RGB_MATRIX_MAXIMUM_BRIGHTNESS);
+        //         SEND_STRING(brightness_str);
+        //         #endif
+        //         #ifdef RGBLED_NUM
+        //         char led_num_str[20];
+        //         snprintf(led_num_str, sizeof(led_num_str), "LED Count: %d, ", RGBLED_NUM);
+        //         SEND_STRING(led_num_str);
+        //         #endif
+        //         #else
+        //         SEND_STRING("RGB Matrix Inactive, ");
+        //         #endif
+        //         SEND_STRING("WS2812 PWM TMR2\r\n");
+        //         if (!ws2812_power_get()) {
+        //             SEND_STRING("WS2812 Power Off\r\n");
+        //         } else {
+        //             SEND_STRING("WS2812 Power On\r\n");
+        //         }
+        //     }
+        //     return false;
+        case KC_LED_INIT_LOW:
+            if (record->event.pressed) {
+                gpio_set_pin_output(A11);
+                gpio_write_pin_high(A11);
+                ws2812_init();
+                static rgb_led_t test_leds[4];
+                for (int i = 0; i < 4; i++) {
+                    test_leds[i].r = 255;  // 红色
+                    test_leds[i].g = 0;
+                    test_leds[i].b = 0;
+                }
+                ws2812_setleds(test_leds, 4);
+                SEND_STRING("SET A11 LOW\r\n");
+            }
+            return false;
+        case KC_LED_INIT_HIGH:
+            if (record->event.pressed) {
+                ws2812_init();
+
+                gpio_set_pin_output(A11);
+                gpio_write_pin_low(A11);
+                SEND_STRING("SET A11 HIGH\r\n");
+            }
+            return false;
     }
-    return true;
+    
+    // 处理 RGB 按键调试
+    return process_record_user_rgb(keycode, record);
 }

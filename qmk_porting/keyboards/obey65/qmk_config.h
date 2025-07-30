@@ -41,24 +41,19 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define BOOTMAGIC_ROW    0
 #define BOOTMAGIC_COLUMN 0
 
-#define WS2812_PWM_DRIVER 2
-#define WS2812_DI_PIN     A11
-#define WS2812_RGBW
+// PWM 驱动定义
+#define WS2812_PWM_DRIVER 2         // 使用 TMR2（PA11）
+#define WS2812_DI_PIN     A11       // 接在 PA11
+#define WS2812_DRIVER     pwm       // 使用 PWM 驱动
+// #define WS2812_PWM_TARGET_PERIOD 800000 // PWM周期 = 1.25us，对应800kHz
+#define WS2812_TIMING 1250
+#define WS2812_T1H 850
+#define WS2812_T0H 250
+#define WS2812_TRST_US 100
 
-// RGB Matrix 配置 - PA11的4灯珠，使用PWM驱动
-#define RGB_MATRIX_DRIVER WS2812
-#define WS2812_DRIVER pwm  // 使用PWM驱动
+#define WS2812_BYTE_ORDER WS2812_BYTE_ORDER_GRB  // 可选，根据颜色实际效果调整
 
-// WS2812 PWM 时序配置
-#define WS2812_PWM_TARGET_PERIOD 800000  // PWM目标周期
-#define WS2812_TIMEOUT 100  // 超时设置
-
-#ifdef RGB_MATRIX_ENABLE
-#define BLE_SLOT_1_INDICATOR [0][1]
-#define BLE_SLOT_2_INDICATOR [0][2]
-#define BLE_SLOT_3_INDICATOR [0][3]
-#define BLE_SLOT_4_INDICATOR [0][4]
-// #define RGB_MATRIX_DEFAULT_MODE RGB_MATRIX_SOLID_REACTIVE
+// RGB Matrix 设置
 #define RGBLED_NUM                    4
 #define RGB_MATRIX_LED_COUNT          RGBLED_NUM
 #define RGB_MATRIX_MAXIMUM_BRIGHTNESS 32
@@ -68,6 +63,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define RGB_MATRIX_VAL_STEP           4
 #define RGB_MATRIX_SPD_STEP           10
 #define RGB_MATRIX_SLEEP
+
+#ifdef RGB_MATRIX_ENABLE
+// 灯效（可按需精简）
 #define ENABLE_RGB_MATRIX_ALPHAS_MODS
 #define ENABLE_RGB_MATRIX_GRADIENT_UP_DOWN
 #define ENABLE_RGB_MATRIX_GRADIENT_LEFT_RIGHT
@@ -115,6 +113,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #ifdef RGB_RAW_ENABLE
 #define AUXILIARY_RGB_USE_UNIVERSAL_BRIGHTNESS
 #endif
+
 // #define PERMISSIVE_HOLD
 #define HOLD_ON_OTHER_KEY_PRESS
 
