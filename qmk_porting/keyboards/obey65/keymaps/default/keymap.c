@@ -211,26 +211,12 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         //     return false;
         case KC_LED_INIT_LOW:
             if (record->event.pressed) {
-                gpio_set_pin_output(A11);
-                gpio_write_pin_high(A11);
-                ws2812_init();
-                static rgb_led_t test_leds[4];
-                for (int i = 0; i < 4; i++) {
-                    test_leds[i].r = 255;  // 红色
-                    test_leds[i].g = 0;
-                    test_leds[i].b = 0;
-                }
-                ws2812_setleds(test_leds, 4);
-                SEND_STRING("SET A11 LOW\r\n");
+                ws2812_power_toggle(false);
             }
             return false;
         case KC_LED_INIT_HIGH:
             if (record->event.pressed) {
-                ws2812_init();
-
-                gpio_set_pin_output(A11);
-                gpio_write_pin_low(A11);
-                SEND_STRING("SET A11 HIGH\r\n");
+                ws2812_power_toggle(true);
             }
             return false;
     }
