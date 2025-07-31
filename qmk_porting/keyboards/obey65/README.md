@@ -73,38 +73,59 @@
 - 雨滴效果 (Raindrops)
 - 软糖雨滴效果 (Jellybean Raindrops)
 
-### RGB控制按键 (Layer 2)
-在Layer 2中提供了完整的RGB控制和调试功能：
+### 自定义RGB控制 (Layer 2)
+在Layer 2中提供了完整的自定义RGB控制和调试功能：
 
-#### 基础RGB控制
-- `RGB_TOG`: 开关RGB灯光
-- `RGB_MOD`: 切换下一个灯光模式
-- `RGB_RMOD`: 切换上一个灯光模式
-- `RGB_HUI`: 增加色相 (+10)
-- `RGB_HUD`: 减少色相 (-10)
-- `RGB_SAI`: 增加饱和度 (+8)
-- `RGB_SAD`: 减少饱和度 (-8)
-- `RGB_VAI`: 增加亮度 (+4)
-- `RGB_VAD`: 减少亮度 (-4)
-- `RGB_SPI`: 增加效果速度 (+10)
-- `RGB_SPD`: 减少效果速度 (-10)
+#### 颜色通道控制 (每4个按键为一组)
+**红色通道 (R):**
+- `KC_RED_MINUS_5`: 红色 -5
+- `KC_RED_MINUS_1`: 红色 -1  
+- `KC_RED_PLUS_1`: 红色 +1
+- `KC_RED_PLUS_5`: 红色 +5
 
-#### 调试功能
+**绿色通道 (G):**
+- `KC_GREEN_MINUS_5`: 绿色 -5
+- `KC_GREEN_MINUS_1`: 绿色 -1
+- `KC_GREEN_PLUS_1`: 绿色 +1
+- `KC_GREEN_PLUS_5`: 绿色 +5
+
+**蓝色通道 (B):**
+- `KC_BLUE_MINUS_5`: 蓝色 -5
+- `KC_BLUE_MINUS_1`: 蓝色 -1
+- `KC_BLUE_PLUS_1`: 蓝色 +1
+- `KC_BLUE_PLUS_5`: 蓝色 +5
+
+#### 调试和控制功能
 - `KC_RGB_DEBUG`: RGB调试信息按键
-  - 输出当前RGB Matrix状态
+  - 输出当前RGB颜色值 (R:G:B格式)
   - 显示驱动类型 (PWM/SPI)
   - 显示引脚配置信息
   
-- `KC_LED_STATUS`: LED状态信息按键
-  - 显示RGB Matrix激活状态
-  - 显示最大亮度值
-  - 显示LED数量
-  - 显示驱动详细信息
+- `KC_LED_TOGGLE`: LED开关切换按键
+- `KC_LED_INIT_LOW`: LED关闭按键
+- `KC_LED_INIT_HIGH`: LED开启按键
+
+### 技术特性
+
+#### 自定义WS2812驱动
+- **96位数据发送**: 4个LED × 24位(GRB) = 96位数据
+- **精确时序控制**: 使用NOP指令实现精确的WS2812时序
+- **GRB颜色顺序**: 绿色(G)、红色(R)、蓝色(B)顺序发送
+- **EEPROM存储**: 颜色设置自动保存到EEPROM，重启后恢复
+
+#### 颜色控制
+- **值域范围**: 0~255 (8位精度)
+- **调整步长**: ±1 (精细调节) 和 ±5 (快速调节)
+- **实时更新**: 每次按键按下立即发送96位数据
+- **持久存储**: 颜色变化自动保存到EEPROM
 
 #### 调试输出示例
 ```
-RGB Debug: RGB Matrix Enabled, PWM Driver, PA11 Pin
-LED Status: RGB Matrix Active, Max Brightness: 32, LED Count: 4, WS2812 PWM TMR2
+RGB Debug: R:128 G:128 B:128
+LED Power: ON
+Red -5
+Green +1
+Blue +5
 ```
 
 ## 构建说明
@@ -141,6 +162,7 @@ LED Status: RGB Matrix Active, Max Brightness: 32, LED Count: 4, WS2812 PWM TMR2
 
 - RGB灯光功能已启用，使用PA11引脚作为WS2812数据线（TMR2 PWM输出）
 - 使用PWM驱动方式（TMR2定时器），默认启用多种灯光效果
+- 电源控制功能已修复，支持通过按键开关RGB灯光
 - 通过按住MO(2)键进入Layer 2来访问RGB控制功能
 - 确保二极管方向设置为 `COL2ROW`
 - 建议使用VIA软件进行键映射配置

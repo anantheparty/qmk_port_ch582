@@ -17,6 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include QMK_KEYBOARD_H
 #include "led.h"
+#include "ws2812_custom.h"
 
 #ifdef RGB_MATRIX_ENABLE
 // RGB Matrix LED 位置配置 - 四颗 LED 竖着排列在右 CTRL 右侧
@@ -68,16 +69,10 @@ bool led_update_kb(led_t led_state) {
 }
 
 void keyboard_post_init_kb(void) {
-    ws2812_init();
-    static rgb_led_t test_leds[4];
-    for (int i = 0; i < 4; i++) {
-        test_leds[i].r = 255;  // 红色
-        test_leds[i].g = 255;
-        test_leds[i].b = 255;
-    }
-    ws2812_setleds(test_leds, 4);
+    // 初始化自定义WS2812控制
+    ws2812_custom_init();
     keyboard_post_init_user();
-    SEND_STRING("RGB INIT\r\n");
+    SEND_STRING("Custom WS2812 INIT\r\n");
 }
 
 #define NOP __asm__("nop")

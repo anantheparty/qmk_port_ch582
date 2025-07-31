@@ -17,6 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include QMK_KEYBOARD_H
 #include "ws2812.h"
+#include "ws2812_custom.h"
 
 #ifndef RGBLED_NUM
 #define RGBLED_NUM 4
@@ -30,8 +31,21 @@ enum custom_keycodes {
     KC_FN,
     KC_BOOTLOADER_JUMP,
     KC_RGB_DEBUG,  // RGB调试按键
-    KC_LED_INIT_LOW,  // LED状态显示按键
-    KC_LED_INIT_HIGH,    // LED初始化按键
+    KC_LED_INIT_LOW,  // LED关闭
+    KC_LED_INIT_HIGH,  // LED开启
+    KC_LED_TOGGLE,     // LED开关
+    KC_RED_MINUS_5,    // 红色 -5
+    KC_RED_MINUS_1,    // 红色 -1
+    KC_RED_PLUS_1,     // 红色 +1
+    KC_RED_PLUS_5,     // 红色 +5
+    KC_GREEN_MINUS_5,  // 绿色 -5
+    KC_GREEN_MINUS_1,  // 绿色 -1
+    KC_GREEN_PLUS_1,   // 绿色 +1
+    KC_GREEN_PLUS_5,   // 绿色 +5
+    KC_BLUE_MINUS_5,   // 蓝色 -5
+    KC_BLUE_MINUS_1,   // 蓝色 -1
+    KC_BLUE_PLUS_1,    // 蓝色 +1
+    KC_BLUE_PLUS_5,    // 蓝色 +5
 };
 
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
@@ -50,9 +64,9 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         _______, _______, _______, _______, _______,   _______,   _______,   _______,   _______,   _______, _______, _______, _______, _______, _______
     ),
     [2] = LAYOUT_all(
-        // Layer 2: RGB 控制层
-        RGB_TOG, RGB_MOD, RGB_RMOD, RGB_HUI, RGB_HUD, RGB_SAI, RGB_SAD, RGB_VAI, RGB_VAD, RGB_SPI, RGB_SPD, KC_RGB_DEBUG, KC_LED_INIT_LOW, KC_LED_INIT_HIGH, _______,
-        _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,
+        // Layer 2: 自定义RGB控制层 (75个参数)
+        KC_LED_TOGGLE  , KC_RED_MINUS_5, KC_RED_MINUS_1, KC_RED_PLUS_1, KC_RED_PLUS_5,  KC_GREEN_MINUS_5, KC_GREEN_MINUS_1, KC_GREEN_PLUS_1, KC_GREEN_PLUS_5,  KC_BLUE_MINUS_5, KC_BLUE_MINUS_1, KC_BLUE_PLUS_1, KC_BLUE_PLUS_5, _______,  _______,
+        KC_LED_INIT_LOW,   KC_LED_INIT_HIGH,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,
         _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,
         _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,
         _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______
@@ -78,53 +92,53 @@ const uint32_t unicode_map[] = {
 
 
 
-// RGB 按键调试处理函数
-bool process_record_user_rgb(uint16_t keycode, keyrecord_t *record) {
-    if (record->event.pressed) {
-        switch (keycode) {
-            case RGB_TOG:
-                SEND_STRING("RGB_TOG: Toggle RGB\r\n");
-                if (!ws2812_power_get()) {
-                    SEND_STRING("WS2812 Power Off\r\n");
-                } else {
-                    SEND_STRING("WS2812 Power On\r\n");
-                }
-                // ws2812_power_toggle(!ws2812_power_get());
-                break;
-            case RGB_MOD:
-                SEND_STRING("RGB_MOD: Next Mode\r\n");
-                break;
-            case RGB_RMOD:
-                SEND_STRING("RGB_RMOD: Previous Mode\r\n");
-                break;
-            case RGB_HUI:
-                SEND_STRING("RGB_HUI: Hue +10\r\n");
-                break;
-            case RGB_HUD:
-                SEND_STRING("RGB_HUD: Hue -10\r\n");
-                break;
-            case RGB_SAI:
-                SEND_STRING("RGB_SAI: Saturation +8\r\n");
-                break;
-            case RGB_SAD:
-                SEND_STRING("RGB_SAD: Saturation -8\r\n");
-                break;
-            case RGB_VAI:
-                SEND_STRING("RGB_VAI: Value +4\r\n");
-                break;
-            case RGB_VAD:
-                SEND_STRING("RGB_VAD: Value -4\r\n");
-                break;
-            case RGB_SPI:
-                SEND_STRING("RGB_SPI: Speed +10\r\n");
-                break;
-            case RGB_SPD:
-                SEND_STRING("RGB_SPD: Speed -10\r\n");
-                break;
-        }
-    }
-    return true;
-}
+// // RGB 按键调试处理函数
+// bool process_record_user_rgb(uint16_t keycode, keyrecord_t *record) {
+//     if (record->event.pressed) {
+//         switch (keycode) {
+//             case RGB_TOG:
+//                 SEND_STRING("RGB_TOG: Toggle RGB\r\n");
+//                 if (!ws2812_power_get()) {
+//                     SEND_STRING("WS2812 Power Off\r\n");
+//                 } else {
+//                     SEND_STRING("WS2812 Power On\r\n");
+//                 }
+//                 // ws2812_power_toggle(!ws2812_power_get());
+//                 break;
+//             case RGB_MOD:
+//                 SEND_STRING("RGB_MOD: Next Mode\r\n");
+//                 break;
+//             case RGB_RMOD:
+//                 SEND_STRING("RGB_RMOD: Previous Mode\r\n");
+//                 break;
+//             case RGB_HUI:
+//                 SEND_STRING("RGB_HUI: Hue +10\r\n");
+//                 break;
+//             case RGB_HUD:
+//                 SEND_STRING("RGB_HUD: Hue -10\r\n");
+//                 break;
+//             case RGB_SAI:
+//                 SEND_STRING("RGB_SAI: Saturation +8\r\n");
+//                 break;
+//             case RGB_SAD:
+//                 SEND_STRING("RGB_SAD: Saturation -8\r\n");
+//                 break;
+//             case RGB_VAI:
+//                 SEND_STRING("RGB_VAI: Value +4\r\n");
+//                 break;
+//             case RGB_VAD:
+//                 SEND_STRING("RGB_VAD: Value -4\r\n");
+//                 break;
+//             case RGB_SPI:
+//                 SEND_STRING("RGB_SPI: Speed +10\r\n");
+//                 break;
+//             case RGB_SPD:
+//                 SEND_STRING("RGB_SPD: Speed -10\r\n");
+//                 break;
+//         }
+//     }
+//     return true;
+// }
 
 // 重写 process_record_user 函数来包含 RGB 调试
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
@@ -165,22 +179,11 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         case KC_RGB_DEBUG:
             if (record->event.pressed) {
                 SEND_STRING("RGB Debug: ");
-                #ifdef RGB_MATRIX_ENABLE
-                SEND_STRING("RGB Matrix Enabled, ");
-                #else
-                SEND_STRING("RGB Matrix Disabled, ");
-                #endif
-                #ifdef WS2812_DRIVER_PWM
-                SEND_STRING("PWM Driver, ");
-                #endif
-                #ifdef WS2812_DRIVER_SPI
-                SEND_STRING("SPI Driver, ");
-                #endif
-                #if WS2812_DI_PIN == PA10
-                    SEND_STRING("PA10 Pin\r\n");
-                #else
-                    SEND_STRING("PA11 Pin\r\n");
-                #endif
+                ws2812_color_t current_color = ws2812_custom_get_current_color();
+                char debug_str[50];
+                snprintf(debug_str, sizeof(debug_str), "R:%d G:%d B:%d\r\n", 
+                         current_color.r, current_color.g, current_color.b);
+                SEND_STRING(debug_str);
             }
             return false;
         // case KC_LED_STATUS:
@@ -209,18 +212,151 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         //         }
         //     }
         //     return false;
+        case KC_LED_TOGGLE:
+            if (record->event.pressed) {
+                ws2812_toggle_power(!ws2812_custom_power_get());
+                SEND_STRING("LED Power: ");
+                SEND_STRING(ws2812_custom_power_get() ? "ON" : "OFF");
+                SEND_STRING("\r\n");
+            }
+            return false;
         case KC_LED_INIT_LOW:
             if (record->event.pressed) {
-                ws2812_power_toggle(false);
+                ws2812_toggle_power(false);
+                SEND_STRING("LED Power: OFF\r\n");
             }
             return false;
         case KC_LED_INIT_HIGH:
             if (record->event.pressed) {
-                ws2812_power_toggle(true);
+                ws2812_toggle_power(true);
+                SEND_STRING("LED Power: ON\r\n");
+            }
+            return false;
+        // 红色通道控制
+        case KC_RED_MINUS_5:
+            if (record->event.pressed) {
+                ws2812_custom_adjust_color(0, -5);
+                ws2812_color_t current_color = ws2812_custom_get_current_color();
+                char debug_str[50];
+                snprintf(debug_str, sizeof(debug_str), "Red -5 -> R:%d G:%d B:%d\r\n", 
+                         current_color.r, current_color.g, current_color.b);
+                SEND_STRING(debug_str);
+            }
+            return false;
+        case KC_RED_MINUS_1:
+            if (record->event.pressed) {
+                ws2812_custom_adjust_color(0, -1);
+                ws2812_color_t current_color = ws2812_custom_get_current_color();
+                char debug_str[50];
+                snprintf(debug_str, sizeof(debug_str), "Red -1 -> R:%d G:%d B:%d\r\n", 
+                         current_color.r, current_color.g, current_color.b);
+                SEND_STRING(debug_str);
+            }
+            return false;
+        case KC_RED_PLUS_1:
+            if (record->event.pressed) {
+                ws2812_custom_adjust_color(0, 1);
+                ws2812_color_t current_color = ws2812_custom_get_current_color();
+                char debug_str[50];
+                snprintf(debug_str, sizeof(debug_str), "Red +1 -> R:%d G:%d B:%d\r\n", 
+                         current_color.r, current_color.g, current_color.b);
+                SEND_STRING(debug_str);
+            }
+            return false;
+        case KC_RED_PLUS_5:
+            if (record->event.pressed) {
+                ws2812_custom_adjust_color(0, 5);
+                ws2812_color_t current_color = ws2812_custom_get_current_color();
+                char debug_str[50];
+                snprintf(debug_str, sizeof(debug_str), "Red +5 -> R:%d G:%d B:%d\r\n", 
+                         current_color.r, current_color.g, current_color.b);
+                SEND_STRING(debug_str);
+            }
+            return false;
+        // 绿色通道控制
+        case KC_GREEN_MINUS_5:
+            if (record->event.pressed) {
+                ws2812_custom_adjust_color(1, -5);
+                ws2812_color_t current_color = ws2812_custom_get_current_color();
+                char debug_str[50];
+                snprintf(debug_str, sizeof(debug_str), "Green -5 -> R:%d G:%d B:%d\r\n", 
+                         current_color.r, current_color.g, current_color.b);
+                SEND_STRING(debug_str);
+            }
+            return false;
+        case KC_GREEN_MINUS_1:
+            if (record->event.pressed) {
+                ws2812_custom_adjust_color(1, -1);
+                ws2812_color_t current_color = ws2812_custom_get_current_color();
+                char debug_str[50];
+                snprintf(debug_str, sizeof(debug_str), "Green -1 -> R:%d G:%d B:%d\r\n", 
+                         current_color.r, current_color.g, current_color.b);
+                SEND_STRING(debug_str);
+            }
+            return false;
+        case KC_GREEN_PLUS_1:
+            if (record->event.pressed) {
+                ws2812_custom_adjust_color(1, 1);
+                ws2812_color_t current_color = ws2812_custom_get_current_color();
+                char debug_str[50];
+                snprintf(debug_str, sizeof(debug_str), "Green +1 -> R:%d G:%d B:%d\r\n", 
+                         current_color.r, current_color.g, current_color.b);
+                SEND_STRING(debug_str);
+            }
+            return false;
+        case KC_GREEN_PLUS_5:
+            if (record->event.pressed) {
+                ws2812_custom_adjust_color(1, 5);
+                ws2812_color_t current_color = ws2812_custom_get_current_color();
+                char debug_str[50];
+                snprintf(debug_str, sizeof(debug_str), "Green +5 -> R:%d G:%d B:%d\r\n", 
+                         current_color.r, current_color.g, current_color.b);
+                SEND_STRING(debug_str);
+            }
+            return false;
+        // 蓝色通道控制
+        case KC_BLUE_MINUS_5:
+            if (record->event.pressed) {
+                ws2812_custom_adjust_color(2, -5);
+                ws2812_color_t current_color = ws2812_custom_get_current_color();
+                char debug_str[50];
+                snprintf(debug_str, sizeof(debug_str), "Blue -5 -> R:%d G:%d B:%d\r\n", 
+                         current_color.r, current_color.g, current_color.b);
+                SEND_STRING(debug_str);
+            }
+            return false;
+        case KC_BLUE_MINUS_1:
+            if (record->event.pressed) {
+                ws2812_custom_adjust_color(2, -1);
+                ws2812_color_t current_color = ws2812_custom_get_current_color();
+                char debug_str[50];
+                snprintf(debug_str, sizeof(debug_str), "Blue -1 -> R:%d G:%d B:%d\r\n", 
+                         current_color.r, current_color.g, current_color.b);
+                SEND_STRING(debug_str);
+            }
+            return false;
+        case KC_BLUE_PLUS_1:
+            if (record->event.pressed) {
+                ws2812_custom_adjust_color(2, 1);
+                ws2812_color_t current_color = ws2812_custom_get_current_color();
+                char debug_str[50];
+                snprintf(debug_str, sizeof(debug_str), "Blue +1 -> R:%d G:%d B:%d\r\n", 
+                         current_color.r, current_color.g, current_color.b);
+                SEND_STRING(debug_str);
+            }
+            return false;
+        case KC_BLUE_PLUS_5:
+            if (record->event.pressed) {
+                ws2812_custom_adjust_color(2, 5);
+                ws2812_color_t current_color = ws2812_custom_get_current_color();
+                char debug_str[50];
+                snprintf(debug_str, sizeof(debug_str), "Blue +5 -> R:%d G:%d B:%d\r\n", 
+                         current_color.r, current_color.g, current_color.b);
+                SEND_STRING(debug_str);
             }
             return false;
     }
-    
+    return  true;
     // 处理 RGB 按键调试
-    return process_record_user_rgb(keycode, record);
+    // return process_record_user_rgb(keycode, record);
 }
