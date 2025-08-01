@@ -20,216 +20,245 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "quantum.h"
 #include "eeprom.h"
 
-// 当前颜色状态
-ws2812_color_t current_color = {128, 128, 128};  // 默认白色
-bool ws2812_power = true;  // 电源状态
+#define MAX_LIGHT 35
+#define INIT_LIGHT 18
+
+// 当前颜色状态 - 分开控制
+ws2812_color_t current_color_4led = {INIT_LIGHT, INIT_LIGHT, INIT_LIGHT};   // 4灯带默认白色
+ws2812_color_t current_color_50led = {INIT_LIGHT, INIT_LIGHT, INIT_LIGHT};  // 50灯带默认白色
+bool ws2812_power_4led = true;   // 4灯带电源状态
+bool ws2812_power_50led = true;  // 50灯带电源状态
 
 // EEPROM 地址定义
-#define EEPROM_COLOR_ADDR 0x1000
-
-// 时序宏定义
-#define NOP __asm__("nop")
-#define delay_nop_12()  NOP;NOP;NOP;NOP;
-#define delay_nop_19()  delay_nop_12(); NOP;NOP;NOP;
-#define delay_nop_38()  delay_nop_19(); delay_nop_19()
-#define delay_nop_48()  delay_nop_38(); NOP;NOP;NOP;
-
-// WS2812 时序宏
-#define BIT0 gpio_write_pin_high(A10);\
-              gpio_write_pin_high(A11);\
-              delay_nop_12();\
-              gpio_write_pin_low(A11);\
-              gpio_write_pin_low(A10);\
-              delay_nop_48();
-
-#define BIT1 gpio_write_pin_high(A10);\
-              gpio_write_pin_high(A11);\
-              delay_nop_38();\
-              gpio_write_pin_low(A11);\
-              gpio_write_pin_low(A10);\
-              delay_nop_19();
-
-// 超高速字节发送函数 - 完全展开，无循环，无查表
-static inline void ws2812_send_byte_ultra_fast(uint8_t byte) {
-    // 使用位操作直接展开，避免任何循环和条件判断
-    // 每个位独立处理，编译器会优化为最快的代码
-    
-    // 位7 (MSB)
-    if (byte & 0x80) {
-        BIT1;
-    } else {
-        BIT0;
-    }
-    
-    // 位6
-    if (byte & 0x40) {
-        BIT1;
-    } else {
-        BIT0;
-    }
-    
-    // 位5
-    if (byte & 0x20) {
-        BIT1;
-    } else {
-        BIT0;
-    }
-    
-    // 位4
-    if (byte & 0x10) {
-        BIT1;
-    } else {
-        BIT0;
-    }
-    
-    // 位3
-    if (byte & 0x08) {
-        BIT1;
-    } else {
-        BIT0;
-    }
-    
-    // 位2
-    if (byte & 0x04) {
-        BIT1;
-    } else {
-        BIT0;
-    }
-    
-    // 位1
-    if (byte & 0x02) {
-        BIT1;
-    } else {
-        BIT0;
-    }
-    
-    // 位0 (LSB)
-    if (byte & 0x01) {
-        BIT1;
-    } else {
-        BIT0;
-    }
-}
-
-// 发送单个LED的24位颜色数据 (GRB顺序) - 超高速版本
-static inline void send_led_color_ultra_fast(ws2812_color_t color) {
-    // 绿色字节 (8位)
-    ws2812_send_byte_ultra_fast(color.g);
-    // 红色字节 (8位)
-    ws2812_send_byte_ultra_fast(color.r);
-    // 蓝色字节 (8位)
-    ws2812_send_byte_ultra_fast(color.b);
-}
+#define EEPROM_COLOR_4LED_ADDR  0x1000
+#define EEPROM_COLOR_50LED_ADDR 0x1010
 
 // 初始化 WS2812
 void ws2812_custom_init(void) {
     // 使用超高速驱动初始化
     ws2812_ultra_fast_init();
     
-    ws2812_power = true;
+    ws2812_power_4led = true;
+    ws2812_power_50led = true;
 
     // 从EEPROM加载保存的颜色
-    ws2812_custom_load_from_eeprom();
+    ws2812_custom_load_from_eeprom_strip(LED_STRIP_4);
+    ws2812_custom_load_from_eeprom_strip(LED_STRIP_50);
     
     // 发送初始颜色
-    ws2812_custom_send_96bits();
+    ws2812_custom_send_strip(LED_STRIP_4);
+    ws2812_custom_send_strip(LED_STRIP_50);
 }
 
 // 发送96位数据 (4个LED，每个24位) - 超高速版本
 void ws2812_custom_send_96bits(void) {
-    // 使用超高速驱动发送4个LED
-    ws2812_ultra_fast_send_4leds(current_color.r, current_color.g, current_color.b);
+    // 兼容旧版本，同时发送两个灯带
+    ws2812_custom_send_strip(LED_STRIP_4);
+    ws2812_custom_send_strip(LED_STRIP_50);
 }
 
-// 设置颜色
+// 发送指定灯带数据
+void ws2812_custom_send_strip(led_strip_type_t strip) {
+    switch (strip) {
+        case LED_STRIP_4:
+            if (ws2812_power_4led) {
+                ws2812_ultra_fast_send_4leds(current_color_4led.r, current_color_4led.g, current_color_4led.b);
+            } else {
+                ws2812_ultra_fast_send_4leds(0, 0, 0);
+            }
+            break;
+        case LED_STRIP_50:
+            if (ws2812_power_50led) {
+                ws2812_ultra_fast_send_50leds(current_color_50led.r, current_color_50led.g, current_color_50led.b);
+            } else {
+                ws2812_ultra_fast_send_50leds(0, 0, 0);
+            }
+            break;
+    }
+}
+
+// 设置颜色 (兼容旧版本)
 void ws2812_custom_set_color(uint8_t r, uint8_t g, uint8_t b) {
-    current_color.r = r;
-    current_color.g = g;
-    current_color.b = b;
+    ws2812_custom_set_color_strip(r, g, b, LED_STRIP_4);
+    ws2812_custom_set_color_strip(r, g, b, LED_STRIP_50);
+}
+
+// 设置指定灯带颜色
+void ws2812_custom_set_color_strip(uint8_t r, uint8_t g, uint8_t b, led_strip_type_t strip) {
+    r %= MAX_LIGHT;
+    g %= MAX_LIGHT;
+    b %= MAX_LIGHT;
+    
+    switch (strip) {
+        case LED_STRIP_4:
+            current_color_4led.r = r;
+            current_color_4led.g = g;
+            current_color_4led.b = b;
+            break;
+        case LED_STRIP_50:
+            current_color_50led.r = r;
+            current_color_50led.g = g;
+            current_color_50led.b = b;
+            break;
+    }
     
     // 发送新的颜色数据
-    ws2812_custom_send_96bits();
+    ws2812_custom_send_strip(strip);
     
     // 保存到EEPROM
-    ws2812_custom_save_to_eeprom();
+    ws2812_custom_save_to_eeprom_strip(strip);
 }
 
 void ws2812_custom_set_color_temp(uint8_t r, uint8_t g, uint8_t b) {
-    // 使用超高速驱动发送4个LED
+    r %= MAX_LIGHT;
+    g %= MAX_LIGHT;
+    b %= MAX_LIGHT;
+    // 临时设置两个灯带
     ws2812_ultra_fast_send_4leds(r, g, b);
+    ws2812_ultra_fast_send_50leds(r, g, b);
 }
 
 void ws2812_toggle_power(bool power) {
-    if (power) {
-        ws2812_custom_set_color_temp(0, 0, 0);
-    } else {
-        ws2812_custom_send_96bits();
-    }
+    ws2812_power_4led = power;
+    ws2812_power_50led = power;
+    ws2812_custom_send_strip(LED_STRIP_4);
+    ws2812_custom_send_strip(LED_STRIP_50);
 }
 
 bool ws2812_custom_power_get(void) {
-    return ws2812_power;
+    return ws2812_power_4led && ws2812_power_50led;
 }
 
-// 调整颜色通道
+// 调整颜色通道 (兼容旧版本)
 void ws2812_custom_adjust_color(uint8_t channel, int8_t delta) {
+    ws2812_custom_adjust_color_strip(channel, delta, LED_STRIP_4);
+    ws2812_custom_adjust_color_strip(channel, delta, LED_STRIP_50);
+}
+
+// 调整指定灯带颜色通道
+void ws2812_custom_adjust_color_strip(uint8_t channel, int8_t delta, led_strip_type_t strip) {
     uint8_t new_value;
+    ws2812_color_t* current_color;
+    
+    switch (strip) {
+        case LED_STRIP_4:
+            current_color = &current_color_4led;
+            break;
+        case LED_STRIP_50:
+            current_color = &current_color_50led;
+            break;
+        default:
+            return;
+    }
     
     switch (channel) {
         case 0:  // 红色
-            new_value = current_color.r + delta;
-            if (new_value <= 255) {
-                current_color.r = new_value;
-            }
+            new_value = current_color->r + delta + MAX_LIGHT;
+            new_value %= MAX_LIGHT;
+            current_color->r = new_value;
             break;
         case 1:  // 绿色
-            new_value = current_color.g + delta;
-            if (new_value <= 255) {
-                current_color.g = new_value;
-            }
+            new_value = current_color->g + delta + MAX_LIGHT;
+            new_value %= MAX_LIGHT;
+            current_color->g = new_value;
             break;
         case 2:  // 蓝色
-            new_value = current_color.b + delta;
-            if (new_value <= 255) {
-                current_color.b = new_value;
-            }
+            new_value = current_color->b + delta + MAX_LIGHT;
+            new_value %= MAX_LIGHT;
+            current_color->b = new_value;
             break;
     }
     
     // 发送新的颜色数据
-    ws2812_custom_send_96bits();
+    ws2812_custom_send_strip(strip);
     
     // 保存到EEPROM
-    ws2812_custom_save_to_eeprom();
+    ws2812_custom_save_to_eeprom_strip(strip);
 }
 
-// 保存颜色到EEPROM
+// 保存颜色到EEPROM (兼容旧版本)
 void ws2812_custom_save_to_eeprom(void) {
-    eeprom_update_byte((uint8_t*)EEPROM_COLOR_ADDR, current_color.r);
-    eeprom_update_byte((uint8_t*)EEPROM_COLOR_ADDR + 1, current_color.g);
-    eeprom_update_byte((uint8_t*)EEPROM_COLOR_ADDR + 2, current_color.b);
+    ws2812_custom_save_to_eeprom_strip(LED_STRIP_4);
+    ws2812_custom_save_to_eeprom_strip(LED_STRIP_50);
 }
 
-// 从EEPROM加载颜色
+// 保存指定灯带颜色到EEPROM
+void ws2812_custom_save_to_eeprom_strip(led_strip_type_t strip) {
+    uint16_t addr;
+    ws2812_color_t* color;
+    
+    switch (strip) {
+        case LED_STRIP_4:
+            addr = EEPROM_COLOR_4LED_ADDR;
+            color = &current_color_4led;
+            break;
+        case LED_STRIP_50:
+            addr = EEPROM_COLOR_50LED_ADDR;
+            color = &current_color_50led;
+            break;
+        default:
+            return;
+    }
+    
+    eeprom_update_byte((uint8_t*)(uintptr_t)addr, color->r);
+    eeprom_update_byte((uint8_t*)(uintptr_t)(addr + 1), color->g);
+    eeprom_update_byte((uint8_t*)(uintptr_t)(addr + 2), color->b);
+}
+
+// 从EEPROM加载颜色 (兼容旧版本)
 void ws2812_custom_load_from_eeprom(void) {
-    uint8_t r = eeprom_read_byte((uint8_t*)EEPROM_COLOR_ADDR);
-    uint8_t g = eeprom_read_byte((uint8_t*)EEPROM_COLOR_ADDR + 1);
-    uint8_t b = eeprom_read_byte((uint8_t*)EEPROM_COLOR_ADDR + 2);
+    ws2812_custom_load_from_eeprom_strip(LED_STRIP_4);
+    ws2812_custom_load_from_eeprom_strip(LED_STRIP_50);
+}
+
+// 从EEPROM加载指定灯带颜色
+void ws2812_custom_load_from_eeprom_strip(led_strip_type_t strip) {
+    uint16_t addr;
+    ws2812_color_t* color;
+    
+    switch (strip) {
+        case LED_STRIP_4:
+            addr = EEPROM_COLOR_4LED_ADDR;
+            color = &current_color_4led;
+            break;
+        case LED_STRIP_50:
+            addr = EEPROM_COLOR_50LED_ADDR;
+            color = &current_color_50led;
+            break;
+        default:
+            return;
+    }
+    
+    uint8_t r = eeprom_read_byte((uint8_t*)(uintptr_t)addr);
+    uint8_t g = eeprom_read_byte((uint8_t*)(uintptr_t)(addr + 1));
+    uint8_t b = eeprom_read_byte((uint8_t*)(uintptr_t)(addr + 2));
     
     // 检查EEPROM是否为空 (0xFF表示未初始化)
     if (r == 0xFF && g == 0xFF && b == 0xFF) {
         // 使用默认颜色
-        current_color.r = 128;
-        current_color.g = 128;
-        current_color.b = 128;
+        color->r = INIT_LIGHT;
+        color->g = INIT_LIGHT;
+        color->b = INIT_LIGHT;
     } else {
-        current_color.r = r;
-        current_color.g = g;
-        current_color.b = b;
+        color->r = r % MAX_LIGHT;
+        color->g = g % MAX_LIGHT;
+        color->b = b % MAX_LIGHT;
     }
 }
 
-// 获取当前颜色
+// 获取当前颜色 (兼容旧版本)
 ws2812_color_t ws2812_custom_get_current_color(void) {
-    return current_color;
+    return current_color_4led; // 返回4灯带颜色作为默认
+}
+
+// 获取指定灯带当前颜色
+ws2812_color_t ws2812_custom_get_current_color_strip(led_strip_type_t strip) {
+    switch (strip) {
+        case LED_STRIP_4:
+            return current_color_4led;
+        case LED_STRIP_50:
+            return current_color_50led;
+        default:
+            return current_color_4led;
+    }
 } 

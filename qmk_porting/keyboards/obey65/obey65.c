@@ -18,34 +18,32 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include QMK_KEYBOARD_H
 #include "led.h"
 #include "ws2812_custom.h"
+#include "ws2812_ultra_fast.h"
 
 #ifdef RGB_MATRIX_ENABLE
 // RGB Matrix LED 位置配置 - 四颗 LED 竖着排列在右 CTRL 右侧
-led_config_t g_led_config = { {
-    // Key Matrix to LED Index
-    {NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED},
-    {NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED},
-    {NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED},
-    {NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED},
-    {NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED}
-}, {
-    // LED Index to Physical Position - 四颗 LED 竖着排列在键盘右侧
-    // LED 0: 最上面
-    {220, 10},
-    // LED 1: 第二个
-    {220, 25},
-    // LED 2: 第三个
-    {220, 40},
-    // LED 3: 最下面
-    {220, 55}
-}, {
-    // LED Index to Flag - 所有 LED 都是装饰灯
-    LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW
-} };
+led_config_t g_led_config = { { // Key Matrix to LED Index
+                                { NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED },
+                                { NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED },
+                                { NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED },
+                                { NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED },
+                                { NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED } },
+                              { // LED Index to Physical Position - 四颗 LED 竖着排列在键盘右侧
+                                // LED 0: 最上面
+                                { 220, 10 },
+                                // LED 1: 第二个
+                                { 220, 25 },
+                                // LED 2: 第三个
+                                { 220, 40 },
+                                // LED 3: 最下面
+                                { 220, 55 } },
+                              { // LED Index to Flag - 所有 LED 都是装饰灯
+                                LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW } };
 #endif
 
 // 大写锁定LED初始化
-void keyboard_pre_init_kb(void) {
+void keyboard_pre_init_kb(void)
+{
     // 设置大写锁定LED引脚为输出
     gpio_set_pin_output(LED_CAPS_LOCK_PIN);
     gpio_write_pin_low(LED_CAPS_LOCK_PIN);
@@ -55,7 +53,8 @@ void keyboard_pre_init_kb(void) {
 }
 
 // 大写锁定LED更新函数
-bool led_update_kb(led_t led_state) {
+bool led_update_kb(led_t led_state)
+{
     bool res = led_update_user(led_state);
     if (res) {
         // 根据大写锁定状态控制LED
@@ -68,32 +67,13 @@ bool led_update_kb(led_t led_state) {
     return res;
 }
 
-void keyboard_post_init_kb(void) {
+void keyboard_post_init_kb(void)
+{
     // 初始化自定义WS2812控制
     ws2812_custom_init();
     keyboard_post_init_user();
-    SEND_STRING("Custom WS2812 INIT\r\n");
+    SEND_STRING("Custom WS2812 INIT - 4LED & 50LED Separated\r\n");
 }
-
-#define NOP __asm__("nop")
-#define delay_nop_12()  NOP;NOP;NOP;NOP;
-#define delay_nop_19()  delay_nop_12(); NOP;NOP;NOP;
-#define delay_nop_38()  delay_nop_19(); delay_nop_19()
-#define delay_nop_48()  delay_nop_38(); NOP;NOP;NOP;
-
-#define BIT0 gpio_write_pin_high(A10);\
-              gpio_write_pin_high(A11);\
-              delay_nop_12();\
-              gpio_write_pin_low(A11);\
-              gpio_write_pin_low(A10);\
-              delay_nop_48();
-
-#define BIT1 gpio_write_pin_high(A10);\
-              gpio_write_pin_high(A11);\
-              delay_nop_38();\
-              gpio_write_pin_low(A11);\
-              gpio_write_pin_low(A10);\
-              delay_nop_19();
 
 int main()
 {
@@ -110,60 +90,34 @@ int main()
 #endif
     gpio_set_pin_output(A11);
     gpio_set_pin_output(A10);
+    gpio_write_pin_low(A11);
+    gpio_write_pin_low(A10);
     protocol_pre_init();
     keyboard_init();
     protocol_post_init();
 
-
-    // for(;;)
-    // {   
-    //     // RESET ALL
-    //     DelayUs(100);
-
-    //             // 约 0.7 us → 34 个 nop（48MHz 下，每个 nop ≈ 20.8ns）
-    //     for (int i = 0; i < 24; i++)
-    //     {
-    //         BIT0;
-    //     }
-
-    //     // 第二个 LED - 0
-    //     for (int i = 0; i < 24; i++)
-    //     {
-    //         BIT1;
-    //     }
-
-    //     // 第三个 LED - 1
-    //     for (int i = 0; i < 8; i++)
-    //     {
-    //         BIT0;
-    //     }
-    //     for (int i = 0; i < 8; i++)
-    //     {
-    //         BIT1;
-    //     }
-    //     for (int i = 0; i < 8; i++)
-    //     {
-    //         BIT0;
-    //     }
-
-    //     // 第四个 LED - 0
-    //     for (int i = 0; i < 8; i++)
-    //     {
-    //         BIT0;
-    //     }
-    //     for (int i = 0; i < 8; i++)
-    //     {
-    //         BIT0;
-    //     }
-    //     for (int i = 0; i < 8; i++)
-    //     {
-    //         BIT1;
-    //     }
-    // }
+    // // 初始化两个灯带
+    // DelayUs(150);
     
+    // // 初始化4灯带
+    // ws2812_ultra_fast_send_4leds(7, 7, 7);
+    
+    // // 初始化50灯带
+    // gpio_write_pin_high(A10);
+    // DelayUs(150);
+    // gpio_write_pin_low(A10);
+    // DelayUs(150);
+    
+    // // 发送50灯带数据
+    // for (int i = 0; i < 10; i++) {
+    //     ws2812_ultra_fast_send_50leds(8, 8, 8);
+    //     gpio_write_pin_low(A10);
+    //     DelayUs(150);
+    // }
+
     /* Main loop */
     for (;;) {
         platform_run();
         //! housekeeping_task() is handled by platform
     }
-} 
+}

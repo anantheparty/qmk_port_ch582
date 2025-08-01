@@ -30,69 +30,131 @@ void ws2812_ultra_fast_init(void) {
 }
 
 // 超高速字节发送 - 完全展开，无循环，无条件判断
-void ws2812_ultra_fast_send_byte(uint8_t byte) {
+inline void ws2812_ultra_fast_send_byte(uint8_t byte) {
     // 使用位操作直接展开，编译器会优化为最快的代码
     // 每个位独立处理，避免任何循环和复杂的条件判断
     
     // 位7 (MSB) - 绿色最高位
     if (byte & 0x80) {
-        BIT1_FAST;
+        BIT1_FAST_LAST(A11);
     } else {
-        BIT0_FAST;
+        BIT0_FAST_LAST(A11);
     }
     
     // 位6
     if (byte & 0x40) {
-        BIT1_FAST;
+        BIT1_FAST_LAST(A11);
     } else {
-        BIT0_FAST;
+        BIT0_FAST_LAST(A11);
     }
     
     // 位5
     if (byte & 0x20) {
-        BIT1_FAST;
+        BIT1_FAST_LAST(A11);
     } else {
-        BIT0_FAST;
+        BIT0_FAST_LAST(A11);
     }
     
     // 位4
     if (byte & 0x10) {
-        BIT1_FAST;
+        BIT1_FAST_LAST(A11);
     } else {
-        BIT0_FAST;
+        BIT0_FAST_LAST(A11);
     }
     
     // 位3
     if (byte & 0x08) {
-        BIT1_FAST;
+        BIT1_FAST_LAST(A11);
     } else {
-        BIT0_FAST;
+        BIT0_FAST_LAST(A11);
     }
     
     // 位2
     if (byte & 0x04) {
-        BIT1_FAST;
+        BIT1_FAST_LAST(A11);
     } else {
-        BIT0_FAST;
+        BIT0_FAST_LAST(A11);
     }
     
     // 位1
     if (byte & 0x02) {
-        BIT1_FAST;
+        BIT1_FAST_LAST(A11);
     } else {
-        BIT0_FAST;
+        BIT0_FAST_LAST(A11);
     }
     
     // 位0 (LSB) - 绿色最低位
     if (byte & 0x01) {
-        BIT1_FAST;
+        BIT1_FAST_LAST(A11);
     } else {
-        BIT0_FAST;
+        BIT0_FAST_LAST(A11);
+    }
+}
+
+// 超高速字节发送 - 完全展开，无循环，无条件判断
+inline void ws2812_ultra_fast_send_byte10(uint8_t byte) {
+    // 使用位操作直接展开，编译器会优化为最快的代码
+    // 每个位独立处理，避免任何循环和复杂的条件判断
+    
+    // 位7 (MSB) - 绿色最高位
+    if (byte & 0x80) {
+        BIT1_FAST_LAST(A10);
+    } else {
+        BIT0_FAST_LAST(A10);
+    }
+    
+    // 位6
+    if (byte & 0x40) {
+        BIT1_FAST_LAST(A10);
+    } else {
+        BIT0_FAST_LAST(A10);
+    }
+    
+    // 位5
+    if (byte & 0x20) {
+        BIT1_FAST_LAST(A10);
+    } else {
+        BIT0_FAST_LAST(A10);
+    }
+    
+    // 位4
+    if (byte & 0x10) {
+        BIT1_FAST_LAST(A10);
+    } else {
+        BIT0_FAST_LAST(A10);
+    }
+    
+    // 位3
+    if (byte & 0x08) {
+        BIT1_FAST_LAST(A10);
+    } else {
+        BIT0_FAST_LAST(A10);
+    }
+    
+    // 位2
+    if (byte & 0x04) {
+        BIT1_FAST_LAST(A10);
+    } else {
+        BIT0_FAST_LAST(A10);
+    }
+    
+    // 位1
+    if (byte & 0x02) {
+        BIT1_FAST_LAST(A10);
+    } else {
+        BIT0_FAST_LAST(A10);
+    }
+    
+    // 位0 (LSB) - 绿色最低位
+    if (byte & 0x01) {
+        BIT1_FAST_LAST(A10);
+    } else {
+        BIT0_FAST_LAST(A10);
     }
 }
 
 // 发送单个LED的24位颜色数据 (GRB顺序)
-void ws2812_ultra_fast_send_led(uint8_t r, uint8_t g, uint8_t b) {
+inline void ws2812_ultra_fast_send_led(uint8_t r, uint8_t g, uint8_t b) {
     // 绿色字节 (8位) - 第一个发送
     ws2812_ultra_fast_send_byte(g);
     // 红色字节 (8位) - 第二个发送
@@ -101,8 +163,18 @@ void ws2812_ultra_fast_send_led(uint8_t r, uint8_t g, uint8_t b) {
     ws2812_ultra_fast_send_byte(b);
 }
 
+inline void ws2812_ultra_fast_send_led10(uint8_t r, uint8_t g, uint8_t b) {
+    // 绿色字节 (8位) - 第一个发送
+    ws2812_ultra_fast_send_byte10(g);
+    // 红色字节 (8位) - 第二个发送
+    ws2812_ultra_fast_send_byte10(r);
+    // 蓝色字节 (8位) - 第三个发送
+    ws2812_ultra_fast_send_byte10(b);
+}
+
+
 // 发送4个LED的颜色数据 - 完全展开，无循环
-void ws2812_ultra_fast_send_4leds(uint8_t r, uint8_t g, uint8_t b) {
+inline void ws2812_ultra_fast_send_4leds(uint8_t r, uint8_t g, uint8_t b) {
     // LED 0
     ws2812_ultra_fast_send_led(r, g, b);
     // LED 1
@@ -114,10 +186,80 @@ void ws2812_ultra_fast_send_4leds(uint8_t r, uint8_t g, uint8_t b) {
     
     // 发送复位信号 (至少50us低电平)
     gpio_write_pin_low(A11);
+    // gpio_write_pin_low(A10);
+    
+    // 延时约50us (在48MHz下约2400个nop)
+    DelayUs(150);
+}
+
+
+
+void ws2812_ultra_fast_send_50leds(uint8_t r, uint8_t g, uint8_t b) {
+    
+    ws2812_ultra_fast_send_led10(r, g, b);
+    ws2812_ultra_fast_send_led10(r, g, b);
+    ws2812_ultra_fast_send_led10(r, g, b);
+    ws2812_ultra_fast_send_led10(r, g, b);
+    ws2812_ultra_fast_send_led10(r, g, b);
+
+    ws2812_ultra_fast_send_led10(r, g, b);
+    ws2812_ultra_fast_send_led10(r, g, b);
+    ws2812_ultra_fast_send_led10(r, g, b);
+    ws2812_ultra_fast_send_led10(r, g, b);
+    ws2812_ultra_fast_send_led10(r, g, b);
+
+    ws2812_ultra_fast_send_led10(r, g, b);
+    ws2812_ultra_fast_send_led10(r, g, b);
+    ws2812_ultra_fast_send_led10(r, g, b);
+    ws2812_ultra_fast_send_led10(r, g, b);
+    ws2812_ultra_fast_send_led10(r, g, b);
+
+    ws2812_ultra_fast_send_led10(r, g, b);
+    ws2812_ultra_fast_send_led10(r, g, b);
+    ws2812_ultra_fast_send_led10(r, g, b);
+    ws2812_ultra_fast_send_led10(r, g, b);
+    ws2812_ultra_fast_send_led10(r, g, b);
+
+    ws2812_ultra_fast_send_led10(r, g, b);
+    ws2812_ultra_fast_send_led10(r, g, b);
+    ws2812_ultra_fast_send_led10(r, g, b);
+    ws2812_ultra_fast_send_led10(r, g, b);
+    ws2812_ultra_fast_send_led10(r, g, b);
+
+    ws2812_ultra_fast_send_led10(r, g, b);
+    ws2812_ultra_fast_send_led10(r, g, b);
+    ws2812_ultra_fast_send_led10(r, g, b);
+    ws2812_ultra_fast_send_led10(r, g, b);
+    ws2812_ultra_fast_send_led10(r, g, b);
+
+    ws2812_ultra_fast_send_led10(r, g, b);
+    ws2812_ultra_fast_send_led10(r, g, b);
+    ws2812_ultra_fast_send_led10(r, g, b);
+    ws2812_ultra_fast_send_led10(r, g, b);
+    ws2812_ultra_fast_send_led10(r, g, b);
+
+    ws2812_ultra_fast_send_led10(r, g, b);
+    ws2812_ultra_fast_send_led10(r, g, b);
+    ws2812_ultra_fast_send_led10(r, g, b);
+    ws2812_ultra_fast_send_led10(r, g, b);
+    ws2812_ultra_fast_send_led10(r, g, b);
+
+    ws2812_ultra_fast_send_led10(r, g, b);
+    ws2812_ultra_fast_send_led10(r, g, b);
+    ws2812_ultra_fast_send_led10(r, g, b);
+    ws2812_ultra_fast_send_led10(r, g, b);
+    ws2812_ultra_fast_send_led10(r, g, b);
+
+    ws2812_ultra_fast_send_led10(r, g, b);
+    ws2812_ultra_fast_send_led10(r, g, b);
+    ws2812_ultra_fast_send_led10(r, g, b);
+    ws2812_ultra_fast_send_led10(r, g, b);
+    ws2812_ultra_fast_send_led10(r, g, b);
+    
+    // 发送复位信号 (至少50us低电平)
+    // gpio_write_pin_low(A10);
     gpio_write_pin_low(A10);
     
     // 延时约50us (在48MHz下约2400个nop)
-    for (int i = 0; i < 2400; i++) {
-        NOP;
-    }
+    DelayUs(150);
 }
