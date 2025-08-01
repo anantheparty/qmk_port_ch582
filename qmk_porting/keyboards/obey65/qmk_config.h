@@ -21,8 +21,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define VENDOR_ID    0xCAFE
 #define PRODUCT_ID   0x0B97
 #define DEVICE_VER   0x0001
-#define MANUFACTURER Obey65
-#define PRODUCT      Obey65
+#define MANUFACTURER Obey
+#define PRODUCT      Obey
 
 #define MATRIX_ROWS 5
 #define MATRIX_COLS 15
@@ -151,7 +151,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 // #define MATRIX_HAS_GHOST
 
 /* Set 0 if debouncing isn't needed */
-#define DEBOUNCE 1
+#define DEBOUNCE 2
 /*
  * Feature disable options
  *  These options are also useful to firmware size reduction.

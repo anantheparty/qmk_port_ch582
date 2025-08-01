@@ -23,7 +23,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define RGBLED_NUM 4
 #endif
 
-#define DEBUG 1  // 调试开关：1=开启调试，0=关闭调试
+#define DEBUG 1 // 调试开关：1=开启调试，0=关闭调试
 #define RGB_STEP 2         // RGB调整步长
 #define BRIGHTNESS_STEP 10  // 亮度调整步长
 
@@ -61,6 +61,11 @@ enum custom_keycodes {
     KC_50_RGB_B_PLUS,        // 50灯带RGB蓝色 +1
     KC_50_BRIGHTNESS_MINUS,  // 50灯带亮度 -5
     KC_50_BRIGHTNESS_PLUS,   // 50灯带亮度 +5
+    // Off/On逻辑测试按键
+    KC_4LED_OFF_SIGNAL,      // 4灯带Off信号
+    KC_4LED_ON_SIGNAL,       // 4灯带On信号
+    KC_50LED_OFF_SIGNAL,     // 50灯带Off信号
+    KC_50LED_ON_SIGNAL,      // 50灯带On信号
 };
 
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
@@ -73,7 +78,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     ),
     [1] = LAYOUT_all(
         KC_GRV,  KC_F1,   KC_F2,   KC_F3,   KC_F4,   KC_F5,   KC_F6,   KC_F7,   KC_F8,   KC_F9,   KC_F10,  KC_F11,  KC_F12,  KC_DEL,  KC_BOOTLOADER_JUMP,
-        _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,
+        _______, KC_4LED_OFF_SIGNAL, KC_4LED_ON_SIGNAL, KC_50LED_OFF_SIGNAL, KC_50LED_ON_SIGNAL, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,
         _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,   _______,
         _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,   _______,
         _______, _______, _______, _______, _______,   _______,   _______,   _______,   _______,   _______, _______, _______, _______, _______, _______
@@ -136,29 +141,6 @@ static void adjust_brightness_and_debug(int8_t adjustment, led_strip_type_t stri
 #endif
 }
 
-// 辅助函数：处理LED电源控制
-static void handle_led_power(bool power_state, const char* action, led_strip_type_t strip) {
-    if (strip == LED_STRIP_4) {
-        // 4灯带电源控制
-        extern bool ws2812_power_4led;
-        ws2812_power_4led = power_state;
-        ws2812_custom_send_strip(LED_STRIP_4);
-    } else {
-        // 50灯带电源控制
-        extern bool ws2812_power_50led;
-        ws2812_power_50led = power_state;
-        ws2812_custom_send_strip(LED_STRIP_50);
-    }
-    
-#if DEBUG
-    const char* strip_name = (strip == LED_STRIP_4) ? "4LED" : "50LED";
-    SEND_STRING(strip_name);
-    SEND_STRING(" Power: ");
-    SEND_STRING(power_state ? "ON" : "OFF");
-    SEND_STRING("\r\n");
-#endif
-}
-
 // 重写 process_record_user 函数来包含 RGB 调试
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     if (!record->event.pressed) {
@@ -212,14 +194,31 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         case KC_LED_TOGGLE:
             {
                 extern bool ws2812_power_4led;
-                handle_led_power(!ws2812_power_4led, "Toggle", LED_STRIP_4);
+                ws2812_power_4led = !ws2812_power_4led;
+                if (ws2812_power_4led) {
+#if DEBUG
+                    SEND_STRING("4LED Toggle: ON\r\n");
+#endif
+                    ws2812_custom_send_on_signal(LED_STRIP_4);
+                } else {
+#if DEBUG
+                    SEND_STRING("4LED Toggle: OFF\r\n");
+#endif
+                    ws2812_custom_send_off_signal(LED_STRIP_4);
+                }
             }
             return false;
         case KC_LED_INIT_LOW:
-            handle_led_power(false, "OFF", LED_STRIP_4);
+#if DEBUG
+            SEND_STRING("4LED OFF\r\n");
+#endif
+            ws2812_custom_send_off_signal(LED_STRIP_4);
             return false;
         case KC_LED_INIT_HIGH:
-            handle_led_power(true, "ON", LED_STRIP_4);
+#if DEBUG
+            SEND_STRING("4LED ON\r\n");
+#endif
+            ws2812_custom_send_on_signal(LED_STRIP_4);
             return false;
         // 4灯带RGB整数控制
         case KC_RGB_R_MINUS:
@@ -250,14 +249,31 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         case KC_50_LED_TOGGLE:
             {
                 extern bool ws2812_power_50led;
-                handle_led_power(!ws2812_power_50led, "Toggle", LED_STRIP_50);
+                ws2812_power_50led = !ws2812_power_50led;
+                if (ws2812_power_50led) {
+#if DEBUG
+                    SEND_STRING("50LED Toggle: ON\r\n");
+#endif
+                    ws2812_custom_send_on_signal(LED_STRIP_50);
+                } else {
+#if DEBUG
+                    SEND_STRING("50LED Toggle: OFF\r\n");
+#endif
+                    ws2812_custom_send_off_signal(LED_STRIP_50);
+                }
             }
             return false;
         case KC_50_LED_INIT_LOW:
-            handle_led_power(false, "OFF", LED_STRIP_50);
+#if DEBUG
+            SEND_STRING("50LED OFF\r\n");
+#endif
+            ws2812_custom_send_off_signal(LED_STRIP_50);
             return false;
         case KC_50_LED_INIT_HIGH:
-            handle_led_power(true, "ON", LED_STRIP_50);
+#if DEBUG
+            SEND_STRING("50LED ON\r\n");
+#endif
+            ws2812_custom_send_on_signal(LED_STRIP_50);
             return false;
         // 50灯带RGB整数控制
         case KC_50_RGB_R_MINUS:
@@ -283,6 +299,31 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             return false;
         case KC_50_BRIGHTNESS_PLUS:
             adjust_brightness_and_debug(BRIGHTNESS_STEP, LED_STRIP_50);
+            return false;
+        // Off/On逻辑测试按键
+        case KC_4LED_OFF_SIGNAL:
+#if DEBUG
+            SEND_STRING("4LED Off Signal\r\n");
+#endif
+            ws2812_custom_send_off_signal(LED_STRIP_4);
+            return false;
+        case KC_4LED_ON_SIGNAL:
+#if DEBUG
+            SEND_STRING("4LED On Signal\r\n");
+#endif
+            ws2812_custom_send_on_signal(LED_STRIP_4);
+            return false;
+        case KC_50LED_OFF_SIGNAL:
+#if DEBUG
+            SEND_STRING("50LED Off Signal\r\n");
+#endif
+            ws2812_custom_send_off_signal(LED_STRIP_50);
+            return false;
+        case KC_50LED_ON_SIGNAL:
+#if DEBUG
+            SEND_STRING("50LED On Signal\r\n");
+#endif
+            ws2812_custom_send_on_signal(LED_STRIP_50);
             return false;
     }
     return true;

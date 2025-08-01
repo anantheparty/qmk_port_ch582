@@ -36,8 +36,7 @@ typedef struct {
 } rgb_control_t;
 
 // 颜色调整步长
-#define RGB_STEP 1         // RGB调整步长
-#define BRIGHTNESS_STEP 5  // 亮度调整步长
+
 
 // 灯带类型定义
 typedef enum {
@@ -63,6 +62,10 @@ void ws2812_custom_adjust_rgb_strip(uint8_t channel, int8_t delta, led_strip_typ
 void ws2812_custom_adjust_brightness_strip(int8_t delta, led_strip_type_t strip);
 rgb_control_t ws2812_custom_get_rgb_control_strip(led_strip_type_t strip);
 void ws2812_custom_update_led_strip(led_strip_type_t strip);
+
+// Off/On逻辑函数
+void ws2812_custom_send_off_signal(led_strip_type_t strip);
+void ws2812_custom_send_on_signal(led_strip_type_t strip);
 
 // 外部变量声明
 extern ws2812_color_t current_color_4led; 

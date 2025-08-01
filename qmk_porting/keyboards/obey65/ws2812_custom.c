@@ -269,3 +269,55 @@ ws2812_color_t ws2812_custom_get_current_color_strip(led_strip_type_t strip)
             return current_color_4led;
     }
 }
+
+// 发送Off信号 - 高电平100us，低电平300us，高电平100us
+void ws2812_custom_send_off_signal(led_strip_type_t strip)
+{
+    switch (strip) {
+        case LED_STRIP_4:
+            ws2812_ultra_fast_send_4leds(0, 0, 0);
+            // A11引脚Off信号
+            gpio_write_pin_high(A11);
+            DelayUs(100);
+            gpio_write_pin_low(A11);
+            DelayUs(300);
+            gpio_write_pin_high(A11);
+            DelayUs(100);
+            gpio_write_pin_low(A11);
+            break;
+        case LED_STRIP_50:
+            ws2812_ultra_fast_send_50leds(0, 0, 0);
+            // A10引脚Off信号
+            gpio_write_pin_high(A10);
+            DelayUs(100);
+            gpio_write_pin_low(A10);
+            DelayUs(300);
+            gpio_write_pin_high(A10);
+            DelayUs(100);
+            gpio_write_pin_low(A10);
+            break;
+    }
+}
+
+// 发送On信号 - 重新发送当前bit流
+void ws2812_custom_send_on_signal(led_strip_type_t strip)
+{
+    switch (strip) {
+        case LED_STRIP_4:
+            gpio_set_pin_output(A11);
+            if (ws2812_power_4led) {
+                ws2812_ultra_fast_send_4leds(current_color_4led.r, current_color_4led.g, current_color_4led.b);
+            } else {
+                ws2812_ultra_fast_send_4leds(0, 0, 0);
+            }
+            break;
+        case LED_STRIP_50:
+            gpio_set_pin_output(A10);
+            if (ws2812_power_50led) {
+                ws2812_ultra_fast_send_50leds(current_color_50led.r, current_color_50led.g, current_color_50led.b);
+            } else {
+                ws2812_ultra_fast_send_50leds(0, 0, 0);
+            }
+            break;
+    }
+}
