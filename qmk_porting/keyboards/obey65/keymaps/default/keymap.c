@@ -23,6 +23,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define RGBLED_NUM 4
 #endif
 
+#define DEBUG 1  // 调试开关：1=开启调试，0=关闭调试
+#define RGB_STEP 2         // RGB调整步长
+#define BRIGHTNESS_STEP 10  // 亮度调整步长
+
 // 自定义按键定义
 enum custom_keycodes {
     KC_CUSTOM_0 = SAFE_RANGE,
@@ -35,34 +39,28 @@ enum custom_keycodes {
     KC_LED_INIT_LOW,  // LED关闭
     KC_LED_INIT_HIGH,  // LED开启
     KC_LED_TOGGLE,     // LED开关
-    KC_RED_MINUS_5,    // 红色 -5
-    KC_RED_MINUS_1,    // 红色 -1
-    KC_RED_PLUS_1,     // 红色 +1
-    KC_RED_PLUS_5,     // 红色 +5
-    KC_GREEN_MINUS_5,  // 绿色 -5
-    KC_GREEN_MINUS_1,  // 绿色 -1
-    KC_GREEN_PLUS_1,   // 绿色 +1
-    KC_GREEN_PLUS_5,   // 绿色 +5
-    KC_BLUE_MINUS_5,   // 蓝色 -5
-    KC_BLUE_MINUS_1,   // 蓝色 -1
-    KC_BLUE_PLUS_1,    // 蓝色 +1
-    KC_BLUE_PLUS_5,    // 蓝色 +5
     // 50灯带控制按键
-    KC_50_RED_MINUS_5,    // 50灯带红色 -5
-    KC_50_RED_MINUS_1,    // 50灯带红色 -1
-    KC_50_RED_PLUS_1,     // 50灯带红色 +1
-    KC_50_RED_PLUS_5,     // 50灯带红色 +5
-    KC_50_GREEN_MINUS_5,  // 50灯带绿色 -5
-    KC_50_GREEN_MINUS_1,  // 50灯带绿色 -1
-    KC_50_GREEN_PLUS_1,   // 50灯带绿色 +1
-    KC_50_GREEN_PLUS_5,   // 50灯带绿色 +5
-    KC_50_BLUE_MINUS_5,   // 50灯带蓝色 -5
-    KC_50_BLUE_MINUS_1,   // 50灯带蓝色 -1
-    KC_50_BLUE_PLUS_1,    // 50灯带蓝色 +1
-    KC_50_BLUE_PLUS_5,    // 50灯带蓝色 +5
     KC_50_LED_TOGGLE,     // 50灯带开关
     KC_50_LED_INIT_LOW,   // 50灯带关闭
     KC_50_LED_INIT_HIGH,  // 50灯带开启
+    // 新的RGB整数和亮度控制按键
+    KC_RGB_R_MINUS,       // RGB红色 -1
+    KC_RGB_R_PLUS,        // RGB红色 +1
+    KC_RGB_G_MINUS,       // RGB绿色 -1
+    KC_RGB_G_PLUS,        // RGB绿色 +1
+    KC_RGB_B_MINUS,       // RGB蓝色 -1
+    KC_RGB_B_PLUS,        // RGB蓝色 +1
+    KC_BRIGHTNESS_MINUS,  // 亮度 -5
+    KC_BRIGHTNESS_PLUS,   // 亮度 +5
+    // 50灯带RGB整数和亮度控制按键
+    KC_50_RGB_R_MINUS,       // 50灯带RGB红色 -1
+    KC_50_RGB_R_PLUS,        // 50灯带RGB红色 +1
+    KC_50_RGB_G_MINUS,       // 50灯带RGB绿色 -1
+    KC_50_RGB_G_PLUS,        // 50灯带RGB绿色 +1
+    KC_50_RGB_B_MINUS,       // 50灯带RGB蓝色 -1
+    KC_50_RGB_B_PLUS,        // 50灯带RGB蓝色 +1
+    KC_50_BRIGHTNESS_MINUS,  // 50灯带亮度 -5
+    KC_50_BRIGHTNESS_PLUS,   // 50灯带亮度 +5
 };
 
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
@@ -81,26 +79,20 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         _______, _______, _______, _______, _______,   _______,   _______,   _______,   _______,   _______, _______, _______, _______, _______, _______
     ),
     [2] = LAYOUT_all(
-        // Layer 2: 4灯带RGB控制层
-        KC_LED_TOGGLE  , KC_RED_MINUS_5, KC_RED_MINUS_1, KC_RED_PLUS_1, KC_RED_PLUS_5,  KC_GREEN_MINUS_5, KC_GREEN_MINUS_1, KC_GREEN_PLUS_1, KC_GREEN_PLUS_5,   KC_BLUE_MINUS_5, KC_BLUE_MINUS_1, KC_BLUE_PLUS_1, KC_BLUE_PLUS_5,   _______,   MO(2),   
-
-        _______,   _______,   _______,   _______,   _______,  
-        _______,   _______,   _______,   _______,   KC_BLUE_MINUS_5, KC_BLUE_MINUS_1, KC_BLUE_PLUS_1, KC_BLUE_PLUS_5,   _______,   _______,
-        
-        _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,
+        // Layer 2: 4灯带RGB整数控制层
+        KC_LED_TOGGLE  , KC_RGB_R_MINUS, KC_RGB_R_PLUS, KC_RGB_G_MINUS, KC_RGB_G_PLUS,  KC_RGB_B_MINUS, KC_RGB_B_PLUS, KC_BRIGHTNESS_MINUS, KC_BRIGHTNESS_PLUS,   _______,   _______,   _______,   _______,   _______,   MO(2),   
+        KC_LED_INIT_LOW,   KC_LED_INIT_HIGH,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,
         _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,
-        _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______, _______,   _______,   _______,   _______
+        _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,
+        _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______
     ),
     [3] = LAYOUT_all(
-        // Layer 3: 50灯带RGB控制层
-        KC_50_LED_TOGGLE  , KC_50_RED_MINUS_5, KC_50_RED_MINUS_1, KC_50_RED_PLUS_1, KC_50_RED_PLUS_5,  KC_50_GREEN_MINUS_5, KC_50_GREEN_MINUS_1, KC_50_GREEN_PLUS_1, KC_50_GREEN_PLUS_5, _______,  _______,
-        KC_50_LED_INIT_LOW,   KC_50_LED_INIT_HIGH,   _______,   _______,   
-        
-        _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,        KC_50_BLUE_MINUS_5, KC_50_BLUE_MINUS_1, KC_50_BLUE_PLUS_1, KC_50_BLUE_PLUS_5,  _______, _______,  
-        
-        _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,
+        // Layer 3: 50灯带RGB整数控制层
+        KC_50_LED_TOGGLE  , KC_50_RGB_R_MINUS, KC_50_RGB_R_PLUS, KC_50_RGB_G_MINUS, KC_50_RGB_G_PLUS,  KC_50_RGB_B_MINUS, KC_50_RGB_B_PLUS, KC_50_BRIGHTNESS_MINUS, KC_50_BRIGHTNESS_PLUS, _______,  _______, _______,   _______,   _______,   MO(3),   
+        KC_50_LED_INIT_LOW,   KC_50_LED_INIT_HIGH,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,
         _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,
-        _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______ ,_______,   _______,   _______,   _______
+        _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,
+        _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______
     )
 }; 
 
@@ -114,15 +106,34 @@ const uint32_t unicode_map[] = {
     [0x06] = 0x00A5, // ¥
 };
 
-// 辅助函数：调整颜色并输出调试信息
-static void adjust_color_and_debug(uint8_t channel, int8_t adjustment, const char* color_name, led_strip_type_t strip) {
-    ws2812_custom_adjust_color_strip(channel, adjustment, strip);
-    ws2812_color_t current_color = ws2812_custom_get_current_color_strip(strip);
-    char debug_str[80];
+// 辅助函数：调整RGB整数并输出调试信息
+static void adjust_rgb_and_debug(uint8_t channel, int8_t adjustment, const char* color_name, led_strip_type_t strip) {
+    ws2812_custom_adjust_rgb_strip(channel, adjustment, strip);
+#if DEBUG
+    rgb_control_t current_rgb = ws2812_custom_get_rgb_control_strip(strip);
+    ws2812_color_t actual_color = ws2812_custom_get_current_color_strip(strip);
+    char debug_str[120];
     const char* strip_name = (strip == LED_STRIP_4) ? "4LED" : "50LED";
-    snprintf(debug_str, sizeof(debug_str), "%s %s %+d -> R:%d G:%d B:%d\r\n", 
-             strip_name, color_name, adjustment, current_color.r, current_color.g, current_color.b);
+    snprintf(debug_str, sizeof(debug_str), "%s %s %+d -> RGB(%d,%d,%d) Bright:%d -> Actual(%d,%d,%d)\r\n", 
+             strip_name, color_name, adjustment, current_rgb.r, current_rgb.g, current_rgb.b, current_rgb.brightness,
+             actual_color.r, actual_color.g, actual_color.b);
     SEND_STRING(debug_str);
+#endif
+}
+
+// 辅助函数：调整亮度并输出调试信息
+static void adjust_brightness_and_debug(int8_t adjustment, led_strip_type_t strip) {
+    ws2812_custom_adjust_brightness_strip(adjustment, strip);
+#if DEBUG
+    rgb_control_t current_rgb = ws2812_custom_get_rgb_control_strip(strip);
+    ws2812_color_t actual_color = ws2812_custom_get_current_color_strip(strip);
+    char debug_str[120];
+    const char* strip_name = (strip == LED_STRIP_4) ? "4LED" : "50LED";
+    snprintf(debug_str, sizeof(debug_str), "%s Brightness %+d -> RGB(%d,%d,%d) Bright:%d -> Actual(%d,%d,%d)\r\n", 
+             strip_name, adjustment, current_rgb.r, current_rgb.g, current_rgb.b, current_rgb.brightness,
+             actual_color.r, actual_color.g, actual_color.b);
+    SEND_STRING(debug_str);
+#endif
 }
 
 // 辅助函数：处理LED电源控制
@@ -139,11 +150,13 @@ static void handle_led_power(bool power_state, const char* action, led_strip_typ
         ws2812_custom_send_strip(LED_STRIP_50);
     }
     
+#if DEBUG
     const char* strip_name = (strip == LED_STRIP_4) ? "4LED" : "50LED";
     SEND_STRING(strip_name);
     SEND_STRING(" Power: ");
     SEND_STRING(power_state ? "ON" : "OFF");
     SEND_STRING("\r\n");
+#endif
 }
 
 // 重写 process_record_user 函数来包含 RGB 调试
@@ -155,16 +168,24 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     // 处理自定义按键
     switch (keycode) {
         case KC_CUSTOM_0:
+#if DEBUG
             SEND_STRING("Custom Key 0\r\n");
+#endif
             return false;
         case KC_CUSTOM_1:
+#if DEBUG
             SEND_STRING("Custom Key 1\r\n");
+#endif
             return false;
         case KC_CUSTOM_2:
+#if DEBUG
             SEND_STRING("Custom Key 2\r\n");
+#endif
             return false;
         case KC_CUSTOM_3:
+#if DEBUG
             SEND_STRING("Custom Key 3\r\n");
+#endif
             return false;
         case KC_FN:
             layer_on(1);
@@ -173,14 +194,19 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             bootloader_jump();
             return false;
         case KC_RGB_DEBUG:
+#if DEBUG
             {
-                ws2812_color_t color_4led = ws2812_custom_get_current_color_strip(LED_STRIP_4);
-                ws2812_color_t color_50led = ws2812_custom_get_current_color_strip(LED_STRIP_50);
-                char debug_str[100];
-                snprintf(debug_str, sizeof(debug_str), "RGB Debug: 4LED R:%d G:%d B:%d, 50LED R:%d G:%d B:%d\r\n", 
-                         color_4led.r, color_4led.g, color_4led.b, color_50led.r, color_50led.g, color_50led.b);
+                rgb_control_t rgb_4led = ws2812_custom_get_rgb_control_strip(LED_STRIP_4);
+                rgb_control_t rgb_50led = ws2812_custom_get_rgb_control_strip(LED_STRIP_50);
+                ws2812_color_t actual_4led = ws2812_custom_get_current_color_strip(LED_STRIP_4);
+                ws2812_color_t actual_50led = ws2812_custom_get_current_color_strip(LED_STRIP_50);
+                char debug_str[200];
+                snprintf(debug_str, sizeof(debug_str), "RGB Debug: 4LED RGB(%d,%d,%d) Bright:%d -> Actual(%d,%d,%d), 50LED RGB(%d,%d,%d) Bright:%d -> Actual(%d,%d,%d)\r\n", 
+                         rgb_4led.r, rgb_4led.g, rgb_4led.b, rgb_4led.brightness, actual_4led.r, actual_4led.g, actual_4led.b,
+                         rgb_50led.r, rgb_50led.g, rgb_50led.b, rgb_50led.brightness, actual_50led.r, actual_50led.g, actual_50led.b);
                 SEND_STRING(debug_str);
             }
+#endif
             return false;
         // 4灯带控制
         case KC_LED_TOGGLE:
@@ -195,44 +221,30 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         case KC_LED_INIT_HIGH:
             handle_led_power(true, "ON", LED_STRIP_4);
             return false;
-        // 4灯带红色通道控制
-        case KC_RED_MINUS_5:
-            adjust_color_and_debug(0, -5, "Red", LED_STRIP_4);
+        // 4灯带RGB整数控制
+        case KC_RGB_R_MINUS:
+            adjust_rgb_and_debug(0, -RGB_STEP, "Red", LED_STRIP_4);
             return false;
-        case KC_RED_MINUS_1:
-            adjust_color_and_debug(0, -1, "Red", LED_STRIP_4);
+        case KC_RGB_R_PLUS:
+            adjust_rgb_and_debug(0, RGB_STEP, "Red", LED_STRIP_4);
             return false;
-        case KC_RED_PLUS_1:
-            adjust_color_and_debug(0, 1, "Red", LED_STRIP_4);
+        case KC_RGB_G_MINUS:
+            adjust_rgb_and_debug(1, -RGB_STEP, "Green", LED_STRIP_4);
             return false;
-        case KC_RED_PLUS_5:
-            adjust_color_and_debug(0, 5, "Red", LED_STRIP_4);
+        case KC_RGB_G_PLUS:
+            adjust_rgb_and_debug(1, RGB_STEP, "Green", LED_STRIP_4);
             return false;
-        // 4灯带绿色通道控制
-        case KC_GREEN_MINUS_5:
-            adjust_color_and_debug(1, -5, "Green", LED_STRIP_4);
+        case KC_RGB_B_MINUS:
+            adjust_rgb_and_debug(2, -RGB_STEP, "Blue", LED_STRIP_4);
             return false;
-        case KC_GREEN_MINUS_1:
-            adjust_color_and_debug(1, -1, "Green", LED_STRIP_4);
+        case KC_RGB_B_PLUS:
+            adjust_rgb_and_debug(2, RGB_STEP, "Blue", LED_STRIP_4);
             return false;
-        case KC_GREEN_PLUS_1:
-            adjust_color_and_debug(1, 1, "Green", LED_STRIP_4);
+        case KC_BRIGHTNESS_MINUS:
+            adjust_brightness_and_debug(-BRIGHTNESS_STEP, LED_STRIP_4);
             return false;
-        case KC_GREEN_PLUS_5:
-            adjust_color_and_debug(1, 5, "Green", LED_STRIP_4);
-            return false;
-        // 4灯带蓝色通道控制
-        case KC_BLUE_MINUS_5:
-            adjust_color_and_debug(2, -5, "Blue", LED_STRIP_4);
-            return false;
-        case KC_BLUE_MINUS_1:
-            adjust_color_and_debug(2, -1, "Blue", LED_STRIP_4);
-            return false;
-        case KC_BLUE_PLUS_1:
-            adjust_color_and_debug(2, 1, "Blue", LED_STRIP_4);
-            return false;
-        case KC_BLUE_PLUS_5:
-            adjust_color_and_debug(2, 5, "Blue", LED_STRIP_4);
+        case KC_BRIGHTNESS_PLUS:
+            adjust_brightness_and_debug(BRIGHTNESS_STEP, LED_STRIP_4);
             return false;
         // 50灯带控制
         case KC_50_LED_TOGGLE:
@@ -247,44 +259,30 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         case KC_50_LED_INIT_HIGH:
             handle_led_power(true, "ON", LED_STRIP_50);
             return false;
-        // 50灯带红色通道控制
-        case KC_50_RED_MINUS_5:
-            adjust_color_and_debug(0, -5, "Red", LED_STRIP_50);
+        // 50灯带RGB整数控制
+        case KC_50_RGB_R_MINUS:
+            adjust_rgb_and_debug(0, -RGB_STEP, "Red", LED_STRIP_50);
             return false;
-        case KC_50_RED_MINUS_1:
-            adjust_color_and_debug(0, -1, "Red", LED_STRIP_50);
+        case KC_50_RGB_R_PLUS:
+            adjust_rgb_and_debug(0, RGB_STEP, "Red", LED_STRIP_50);
             return false;
-        case KC_50_RED_PLUS_1:
-            adjust_color_and_debug(0, 1, "Red", LED_STRIP_50);
+        case KC_50_RGB_G_MINUS:
+            adjust_rgb_and_debug(1, -RGB_STEP, "Green", LED_STRIP_50);
             return false;
-        case KC_50_RED_PLUS_5:
-            adjust_color_and_debug(0, 5, "Red", LED_STRIP_50);
+        case KC_50_RGB_G_PLUS:
+            adjust_rgb_and_debug(1, RGB_STEP, "Green", LED_STRIP_50);
             return false;
-        // 50灯带绿色通道控制
-        case KC_50_GREEN_MINUS_5:
-            adjust_color_and_debug(1, -5, "Green", LED_STRIP_50);
+        case KC_50_RGB_B_MINUS:
+            adjust_rgb_and_debug(2, -RGB_STEP, "Blue", LED_STRIP_50);
             return false;
-        case KC_50_GREEN_MINUS_1:
-            adjust_color_and_debug(1, -1, "Green", LED_STRIP_50);
+        case KC_50_RGB_B_PLUS:
+            adjust_rgb_and_debug(2, RGB_STEP, "Blue", LED_STRIP_50);
             return false;
-        case KC_50_GREEN_PLUS_1:
-            adjust_color_and_debug(1, 1, "Green", LED_STRIP_50);
+        case KC_50_BRIGHTNESS_MINUS:
+            adjust_brightness_and_debug(-BRIGHTNESS_STEP, LED_STRIP_50);
             return false;
-        case KC_50_GREEN_PLUS_5:
-            adjust_color_and_debug(1, 5, "Green", LED_STRIP_50);
-            return false;
-        // 50灯带蓝色通道控制
-        case KC_50_BLUE_MINUS_5:
-            adjust_color_and_debug(2, -5, "Blue", LED_STRIP_50);
-            return false;
-        case KC_50_BLUE_MINUS_1:
-            adjust_color_and_debug(2, -1, "Blue", LED_STRIP_50);
-            return false;
-        case KC_50_BLUE_PLUS_1:
-            adjust_color_and_debug(2, 1, "Blue", LED_STRIP_50);
-            return false;
-        case KC_50_BLUE_PLUS_5:
-            adjust_color_and_debug(2, 5, "Blue", LED_STRIP_50);
+        case KC_50_BRIGHTNESS_PLUS:
+            adjust_brightness_and_debug(BRIGHTNESS_STEP, LED_STRIP_50);
             return false;
     }
     return true;
