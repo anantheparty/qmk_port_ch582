@@ -18,7 +18,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include QMK_KEYBOARD_H
 #include "led.h"
 #include "ws2812_custom.h"
-#include "ws2812_ultra_fast.h"
 
 #ifdef RGB_MATRIX_ENABLE
 // RGB Matrix LED 位置配置 - 四颗 LED 竖着排列在右 CTRL 右侧
@@ -99,22 +98,6 @@ int main()
     // // 初始化两个灯带
     // DelayUs(150);
     
-    // // 初始化4灯带
-    // ws2812_ultra_fast_send_4leds(7, 7, 7);
-    
-    // // 初始化50灯带
-    // gpio_write_pin_high(A10);
-    // DelayUs(150);
-    // gpio_write_pin_low(A10);
-    // DelayUs(150);
-    
-    // // 发送50灯带数据
-    // for (int i = 0; i < 10; i++) {
-    //     ws2812_ultra_fast_send_50leds(8, 8, 8);
-    //     gpio_write_pin_low(A10);
-    //     DelayUs(150);
-    // }
-
     /* Main loop */
     for (;;) {
         platform_run();

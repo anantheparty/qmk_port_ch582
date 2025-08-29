@@ -27,3 +27,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 void ws2812_power_toggle(bool status);
 bool ws2812_power_get();
+#ifdef WS2812_DEBUG
+void ws2812_debug_dump(void);
+void ws2812_debug_timing(void);
+#endif

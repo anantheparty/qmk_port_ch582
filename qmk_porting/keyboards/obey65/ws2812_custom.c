@@ -1,323 +1,162 @@
-/*
-Copyright 2025 Obey65
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
-
 #include "ws2812_custom.h"
-#include "ws2812_ultra_fast.h"
+#include "ws2812.h"
 #include "quantum.h"
+
+// Externs from PWM driver
+extern void ws2812_setleds_pwm1(rgb_led_t *ledarray, uint16_t leds);
+extern void ws2812_setleds_pwm2(rgb_led_t *ledarray, uint16_t leds);
 
 #define MAX_LIGHT 35
 
-// 当前颜色状态 - 分开控制
-ws2812_color_t current_color_4led = { 0, 0, 0 };  // 4灯带默认黑色
-ws2812_color_t current_color_50led = { 0, 0, 0 }; // 50灯带默认黑色
-bool ws2812_power_4led = true;                    // 4灯带电源状态
-bool ws2812_power_50led = true;                   // 50灯带电源状态
+ws2812_color_t current_color_4led = {0, 0, 0};
+ws2812_color_t current_color_50led = {0, 0, 0};
+bool ws2812_power_4led = true;
+bool ws2812_power_50led = true;
 
-// RGB整数控制状态
-rgb_control_t rgb_control_4led = { 4, 4, 4, 20 };  // 4灯带RGB控制，初始值5,5,5，亮度20
-rgb_control_t rgb_control_50led = { 4, 4, 4, 20 }; // 50灯带RGB控制，初始值5,5,5，亮度20
+rgb_control_t rgb_control_4led = {4, 4, 4, 20};
+rgb_control_t rgb_control_50led = {4, 4, 4, 20};
 
-// 初始化 WS2812
-void ws2812_custom_init(void)
-{
-    // 使用超高速驱动初始化
-    ws2812_ultra_fast_init();
+static void send_strip_colors(led_strip_type_t strip, uint8_t r, uint8_t g, uint8_t b) {
+    if (strip == LED_STRIP_4) {
+        rgb_led_t leds[WS2812_LED_COUNT_2];
+        for (uint8_t i = 0; i < WS2812_LED_COUNT_2; i++) {
+            leds[i].r = r;
+            leds[i].g = g;
+            leds[i].b = b;
+        }
+        ws2812_setleds_pwm2(leds, WS2812_LED_COUNT_2);
+    } else {
+        rgb_led_t leds[WS2812_LED_COUNT_1];
+        for (uint8_t i = 0; i < WS2812_LED_COUNT_1; i++) {
+            leds[i].r = r;
+            leds[i].g = g;
+            leds[i].b = b;
+        }
+        ws2812_setleds_pwm1(leds, WS2812_LED_COUNT_1);
+    }
+}
 
+void ws2812_custom_init(void) {
+    ws2812_init();
     ws2812_power_4led = true;
     ws2812_power_50led = true;
-
-    // 更新LED显示
     ws2812_custom_update_led_strip(LED_STRIP_4);
     ws2812_custom_update_led_strip(LED_STRIP_50);
 }
 
-// 发送96位数据 (4个LED，每个24位) - 超高速版本
-void ws2812_custom_send_96bits(void)
-{
-    // 兼容旧版本，同时发送两个灯带
+void ws2812_custom_send_96bits(void) {
     ws2812_custom_send_strip(LED_STRIP_4);
     ws2812_custom_send_strip(LED_STRIP_50);
 }
 
-// 发送指定灯带数据
-void ws2812_custom_send_strip(led_strip_type_t strip)
-{
-    switch (strip) {
-        case LED_STRIP_4:
-            if (ws2812_power_4led) {
-                ws2812_ultra_fast_send_4leds(current_color_4led.r, current_color_4led.g, current_color_4led.b);
-            } else {
-                ws2812_ultra_fast_send_4leds(0, 0, 0);
-            }
-            break;
-        case LED_STRIP_50:
-            if (ws2812_power_50led) {
-                ws2812_ultra_fast_send_50leds(current_color_50led.r, current_color_50led.g, current_color_50led.b);
-            } else {
-                ws2812_ultra_fast_send_50leds(0, 0, 0);
-            }
-            break;
+void ws2812_custom_send_strip(led_strip_type_t strip) {
+    if (strip == LED_STRIP_4) {
+        uint8_t r = ws2812_power_4led ? current_color_4led.r : 0;
+        uint8_t g = ws2812_power_4led ? current_color_4led.g : 0;
+        uint8_t b = ws2812_power_4led ? current_color_4led.b : 0;
+        send_strip_colors(strip, r, g, b);
+    } else {
+        uint8_t r = ws2812_power_50led ? current_color_50led.r : 0;
+        uint8_t g = ws2812_power_50led ? current_color_50led.g : 0;
+        uint8_t b = ws2812_power_50led ? current_color_50led.b : 0;
+        send_strip_colors(strip, r, g, b);
     }
 }
 
-// 调整指定灯带的RGB整数
-void ws2812_custom_adjust_rgb_strip(uint8_t channel, int8_t delta, led_strip_type_t strip)
-{
-    rgb_control_t *control;
-
-    switch (strip) {
-        case LED_STRIP_4:
-            control = &rgb_control_4led;
-            break;
-        case LED_STRIP_50:
-            control = &rgb_control_50led;
-            break;
-        default:
-            return;
-    }
+void ws2812_custom_adjust_rgb_strip(uint8_t channel, int8_t delta, led_strip_type_t strip) {
+    rgb_control_t *control = (strip == LED_STRIP_4) ? &rgb_control_4led : &rgb_control_50led;
 
     switch (channel) {
-        case 0: // 红色
+        case 0:
             control->r += delta;
-            if (control->r > 200)
-                control->r = 0;
-            if (control->r > 10)
-                control->r = 10;
+            if (control->r > 200) control->r = 0;
+            if (control->r > 10) control->r = 10;
             break;
-        case 1: // 绿色
+        case 1:
             control->g += delta;
-            if (control->g > 200)
-                control->g = 0;
-            if (control->g > 10)
-                control->g = 10;
+            if (control->g > 200) control->g = 0;
+            if (control->g > 10) control->g = 10;
             break;
-        case 2: // 蓝色
+        case 2:
             control->b += delta;
-            if (control->b > 200)
-                control->b = 0;
-            if (control->b > 10)
-                control->b = 10;
+            if (control->b > 200) control->b = 0;
+            if (control->b > 10) control->b = 10;
             break;
     }
-
-    // 更新LED显示
     ws2812_custom_update_led_strip(strip);
 }
 
-// 调整指定灯带的亮度
-void ws2812_custom_adjust_brightness_strip(int8_t delta, led_strip_type_t strip)
-{
-    rgb_control_t *control;
-
-    switch (strip) {
-        case LED_STRIP_4:
-            control = &rgb_control_4led;
-            break;
-        case LED_STRIP_50:
-            control = &rgb_control_50led;
-            break;
-        default:
-            return;
-    }
-
+void ws2812_custom_adjust_brightness_strip(int8_t delta, led_strip_type_t strip) {
+    rgb_control_t *control = (strip == LED_STRIP_4) ? &rgb_control_4led : &rgb_control_50led;
     int16_t new_brightness = control->brightness + delta;
-    if (new_brightness < 0)
-        new_brightness = 0;
-    if (new_brightness > 100)
-        new_brightness = 100;
-
+    if (new_brightness < 0) new_brightness = 0;
+    if (new_brightness > 100) new_brightness = 100;
     control->brightness = (uint8_t)new_brightness;
-
-    // 更新LED显示
     ws2812_custom_update_led_strip(strip);
 }
 
-// 获取指定灯带的RGB控制状态
-rgb_control_t ws2812_custom_get_rgb_control_strip(led_strip_type_t strip)
-{
-    switch (strip) {
-        case LED_STRIP_4:
-            return rgb_control_4led;
-        case LED_STRIP_50:
-            return rgb_control_50led;
-        default:
-            return rgb_control_4led;
-    }
+rgb_control_t ws2812_custom_get_rgb_control_strip(led_strip_type_t strip) {
+    return (strip == LED_STRIP_4) ? rgb_control_4led : rgb_control_50led;
 }
 
-// 更新指定灯带的LED显示
-void ws2812_custom_update_led_strip(led_strip_type_t strip)
-{
-    rgb_control_t *control;
-    ws2812_color_t *color;
-
-    switch (strip) {
-        case LED_STRIP_4:
-            control = &rgb_control_4led;
-            color = &current_color_4led;
-            break;
-        case LED_STRIP_50:
-            control = &rgb_control_50led;
-            color = &current_color_50led;
-            break;
-        default:
-            return;
-    }
-
-    // 计算实际RGB值：RGB整数 * 亮度百分比 * MAX_LIGHT / 10
+void ws2812_custom_update_led_strip(led_strip_type_t strip) {
+    rgb_control_t *control = (strip == LED_STRIP_4) ? &rgb_control_4led : &rgb_control_50led;
+    ws2812_color_t *color = (strip == LED_STRIP_4) ? &current_color_4led : &current_color_50led;
     float brightness_factor = control->brightness / 100.0f;
     color->r = (uint8_t)(control->r * brightness_factor * MAX_LIGHT / 10);
     color->g = (uint8_t)(control->g * brightness_factor * MAX_LIGHT / 10);
     color->b = (uint8_t)(control->b * brightness_factor * MAX_LIGHT / 10);
-
-    // 发送新的颜色数据
     ws2812_custom_send_strip(strip);
 }
 
-void ws2812_custom_set_color_temp(uint8_t r, uint8_t g, uint8_t b)
-{
+void ws2812_custom_set_color_temp(uint8_t r, uint8_t g, uint8_t b) {
     r %= MAX_LIGHT;
     g %= MAX_LIGHT;
     b %= MAX_LIGHT;
-    // 临时设置两个灯带
-    ws2812_ultra_fast_send_4leds(r, g, b);
-    ws2812_ultra_fast_send_50leds(r, g, b);
+    send_strip_colors(LED_STRIP_4, r, g, b);
+    send_strip_colors(LED_STRIP_50, r, g, b);
 }
 
-void ws2812_toggle_power(bool power)
-{
+void ws2812_toggle_power(bool power) {
     ws2812_power_4led = power;
     ws2812_power_50led = power;
     ws2812_custom_send_strip(LED_STRIP_4);
     ws2812_custom_send_strip(LED_STRIP_50);
 }
 
-bool ws2812_custom_power_get(void)
-{
+bool ws2812_custom_power_get(void) {
     return ws2812_power_4led && ws2812_power_50led;
 }
 
-// 调整颜色通道 (兼容旧版本)
-void ws2812_custom_adjust_color(uint8_t channel, int8_t delta)
-{
+void ws2812_custom_adjust_color(uint8_t channel, int8_t delta) {
     ws2812_custom_adjust_color_strip(channel, delta, LED_STRIP_4);
     ws2812_custom_adjust_color_strip(channel, delta, LED_STRIP_50);
 }
 
-// 调整指定灯带颜色通道
-void ws2812_custom_adjust_color_strip(uint8_t channel, int8_t delta, led_strip_type_t strip)
-{
-    uint8_t new_value;
-    ws2812_color_t *current_color;
-
-    switch (strip) {
-        case LED_STRIP_4:
-            current_color = &current_color_4led;
-            break;
-        case LED_STRIP_50:
-            current_color = &current_color_50led;
-            break;
-        default:
-            return;
-    }
-
+void ws2812_custom_adjust_color_strip(uint8_t channel, int8_t delta, led_strip_type_t strip) {
+    ws2812_color_t *current_color = (strip == LED_STRIP_4) ? &current_color_4led : &current_color_50led;
+    uint8_t *component = NULL;
     switch (channel) {
-        case 0: // 红色
-            new_value = current_color->r + delta + MAX_LIGHT;
-            new_value %= MAX_LIGHT;
-            current_color->r = new_value;
-            break;
-        case 1: // 绿色
-            new_value = current_color->g + delta + MAX_LIGHT;
-            new_value %= MAX_LIGHT;
-            current_color->g = new_value;
-            break;
-        case 2: // 蓝色
-            new_value = current_color->b + delta + MAX_LIGHT;
-            new_value %= MAX_LIGHT;
-            current_color->b = new_value;
-            break;
+        case 0: component = &current_color->r; break;
+        case 1: component = &current_color->g; break;
+        case 2: component = &current_color->b; break;
+        default: return;
     }
-
-    // 发送新的颜色数据
+    uint8_t new_value = *component + delta + MAX_LIGHT;
+    new_value %= MAX_LIGHT;
+    *component = new_value;
     ws2812_custom_send_strip(strip);
 }
 
-// 获取指定灯带当前颜色
-ws2812_color_t ws2812_custom_get_current_color_strip(led_strip_type_t strip)
-{
-    switch (strip) {
-        case LED_STRIP_4:
-            return current_color_4led;
-        case LED_STRIP_50:
-            return current_color_50led;
-        default:
-            return current_color_4led;
-    }
+ws2812_color_t ws2812_custom_get_current_color_strip(led_strip_type_t strip) {
+    return (strip == LED_STRIP_4) ? current_color_4led : current_color_50led;
 }
 
-// 发送Off信号 - 高电平100us，低电平300us，高电平100us
-void ws2812_custom_send_off_signal(led_strip_type_t strip)
-{
-    switch (strip) {
-        case LED_STRIP_4:
-            ws2812_ultra_fast_send_4leds(0, 0, 0);
-            // A11引脚Off信号
-            gpio_write_pin_high(A11);
-            DelayUs(100);
-            gpio_write_pin_low(A11);
-            DelayUs(300);
-            gpio_write_pin_high(A11);
-            DelayUs(100);
-            gpio_write_pin_low(A11);
-            break;
-        case LED_STRIP_50:
-            ws2812_ultra_fast_send_50leds(0, 0, 0);
-            // A10引脚Off信号
-            gpio_write_pin_high(A10);
-            DelayUs(100);
-            gpio_write_pin_low(A10);
-            DelayUs(300);
-            gpio_write_pin_high(A10);
-            DelayUs(100);
-            gpio_write_pin_low(A10);
-            break;
-    }
+void ws2812_custom_send_off_signal(led_strip_type_t strip) {
+    send_strip_colors(strip, 0, 0, 0);
 }
 
-// 发送On信号 - 重新发送当前bit流
-void ws2812_custom_send_on_signal(led_strip_type_t strip)
-{
-    switch (strip) {
-        case LED_STRIP_4:
-            gpio_set_pin_output(A11);
-            if (ws2812_power_4led) {
-                ws2812_ultra_fast_send_4leds(current_color_4led.r, current_color_4led.g, current_color_4led.b);
-            } else {
-                ws2812_ultra_fast_send_4leds(0, 0, 0);
-            }
-            break;
-        case LED_STRIP_50:
-            gpio_set_pin_output(A10);
-            if (ws2812_power_50led) {
-                ws2812_ultra_fast_send_50leds(current_color_50led.r, current_color_50led.g, current_color_50led.b);
-            } else {
-                ws2812_ultra_fast_send_50leds(0, 0, 0);
-            }
-            break;
-    }
+void ws2812_custom_send_on_signal(led_strip_type_t strip) {
+    ws2812_custom_send_strip(strip);
 }
+
