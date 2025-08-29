@@ -32,6 +32,5 @@ set(ESB_ENABLE OFF CACHE BOOL "KB" FORCE)
 # 添加自定义WS2812源文件
 set(CUSTOM_WS2812_SOURCES
     "${CMAKE_CURRENT_LIST_DIR}/ws2812_custom.c"
-    "${CMAKE_CURRENT_LIST_DIR}/ws2812_ultra_fast.c"
 )
 # set(ESB_ROLE "keyboard" CACHE STRING "KB") 

@@ -41,14 +41,20 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define BOOTMAGIC_ROW    0
 #define BOOTMAGIC_COLUMN 0
 
-// PWM 驱动定义
-#define WS2812_PWM_DRIVER 2         // 使用 TMR2（PA11）
-#define WS2812_DI_PIN     A11       // 接在 PA11
-#define WS2812_DRIVER     pwm       // 使用 PWM 驱动
+// PWM 驱动定义：两路灯带
+#define WS2812_PWM_DRIVER_1 1   // 使用 TMR1（PA10）
+#define WS2812_DI_PIN_1    A10
+#define WS2812_LED_COUNT_1 50
 
-// WS2812 使能引脚配置
-#define WS2812_EN_PIN     A11       // 使用 PA10 作为使能引脚（TMR1 PWM输出）
-#define WS2812_EN_LEVEL   1         // 高电平使能
+#define WS2812_PWM_DRIVER_2 2   // 使用 TMR2（PA11）
+#define WS2812_DI_PIN_2    A11
+#define WS2812_LED_COUNT_2 4
+
+#define WS2812_DRIVER pwm       // 使用 PWM 驱动
+
+// WS2812 使能引脚配置（可选）
+// #define WS2812_EN_PIN     A11
+// #define WS2812_EN_LEVEL   1
 // #define WS2812_PWM_TARGET_PERIOD 800000 // PWM周期 = 1.25us，对应800kHz
 #define WS2812_TIMING 1250
 #define WS2812_T1H 850
@@ -58,7 +64,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define WS2812_BYTE_ORDER WS2812_BYTE_ORDER_GRB  // 可选，根据颜色实际效果调整
 
 // RGB Matrix 设置
-#define RGBLED_NUM                    4
+#define RGBLED_NUM                    (WS2812_LED_COUNT_1 + WS2812_LED_COUNT_2)
 #define RGB_MATRIX_LED_COUNT          RGBLED_NUM
 #define RGB_MATRIX_MAXIMUM_BRIGHTNESS 32
 #define RGB_MATRIX_STARTUP_VAL        RGB_MATRIX_MAXIMUM_BRIGHTNESS
