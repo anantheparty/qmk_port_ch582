@@ -85,7 +85,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     ),
     [2] = LAYOUT_all(
         // Layer 2: 4灯带RGB整数控制层
-        KC_LED_TOGGLE  , KC_RGB_R_MINUS, KC_RGB_R_PLUS, KC_RGB_G_MINUS, KC_RGB_G_PLUS,  KC_RGB_B_MINUS, KC_RGB_B_PLUS, KC_BRIGHTNESS_MINUS, KC_BRIGHTNESS_PLUS,   _______,   _______,   _______,   _______,   _______,   MO(2),   
+        RGB_TOG, RGB_RMOD, RGB_MOD, RGB_HUD, RGB_HUI, RGB_SAD, RGB_SAI, RGB_VAD, RGB_VAI, _______, _______, _______, _______, _______, MO(2),
         KC_LED_INIT_LOW,   KC_LED_INIT_HIGH,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,
         _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,
         _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,
