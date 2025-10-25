@@ -15,40 +15,63 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include QMK_KEYBOARD_H
+#include "quantum.h"
 #include "led.h"
-#include "ws2812_custom.h"
-#include "ws2812_ultra_fast.h"
+#include "ws2812_tmr2.h"
+#include "qmk_config.h"
+#include "pin_defs.h"
+
+#ifndef LED_CAPS_LOCK_PIN
+#define LED_CAPS_LOCK_PIN (0x80000000 | GPIO_Pin_17)
+#endif
+#ifndef A10
+#define A10 (GPIO_Pin_10)
+#endif
+#ifndef A11
+#define A11 (GPIO_Pin_11)
+#endif
 
 #ifdef RGB_MATRIX_ENABLE
-// RGB Matrix LED 位置配置 - 四颗 LED 竖着排列在右 CTRL 右侧
+// RGB Matrix LED 位置配置 - 50颗 LED 沿一条直线排列（从左到右）
 led_config_t g_led_config = { { // Key Matrix to LED Index
-                                { NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED },
-                                { NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED },
-                                { NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED },
-                                { NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED },
-                                { NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED } },
-                              { // LED Index to Physical Position - 四颗 LED 竖着排列在键盘右侧
-                                // LED 0: 最上面
-                                { 220, 10 },
-                                // LED 1: 第二个
-                                { 220, 25 },
-                                // LED 2: 第三个
-                                { 220, 40 },
-                                // LED 3: 最下面
-                                { 220, 55 } },
-                              { // LED Index to Flag - 所有 LED 都是装饰灯
-                                LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW } };
+                               { NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED },
+                               { NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED },
+                               { NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED },
+                               { NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED },
+                               { NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED } },
+                             { // LED Index to Physical Position - 线性分布在 (x:0..224, y:8)
+                               {   0,  8 }, {   5,  8 }, {  10,  8 }, {  15,  8 }, {  20,  8 },
+                               {  25,  8 }, {  30,  8 }, {  35,  8 }, {  40,  8 }, {  45,  8 },
+                               {  50,  8 }, {  55,  8 }, {  60,  8 }, {  65,  8 }, {  70,  8 },
+                               {  75,  8 }, {  80,  8 }, {  85,  8 }, {  90,  8 }, {  95,  8 },
+                               { 100,  8 }, { 105,  8 }, { 110,  8 }, { 115,  8 }, { 120,  8 },
+                               { 125,  8 }, { 130,  8 }, { 135,  8 }, { 140,  8 }, { 145,  8 },
+                               { 150,  8 }, { 155,  8 }, { 160,  8 }, { 165,  8 }, { 170,  8 },
+                               { 175,  8 }, { 180,  8 }, { 185,  8 }, { 190,  8 }, { 195,  8 },
+                               { 200,  8 }, { 205,  8 }, { 210,  8 }, { 215,  8 }, { 220,  8 },
+                               { 225,  8 }, { 230,  8 }, { 235,  8 }, { 240,  8 }, { 245,  8 } },
+                             { // LED Index to Flag - 全部为装饰灯
+                               LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW,
+                               LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW,
+                               LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW,
+                               LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW,
+                               LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW,
+                               LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW,
+                               LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW,
+                               LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW,
+                               LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW,
+                               LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW } };
 #endif
 
 // 大写锁定LED初始化
 void keyboard_pre_init_kb(void)
 {
     // 设置大写锁定LED引脚为输出
+#ifdef LED_CAPS_LOCK_PIN
     gpio_set_pin_output(LED_CAPS_LOCK_PIN);
     gpio_write_pin_low(LED_CAPS_LOCK_PIN);
-    gpio_set_pin_output(A11);
-    gpio_write_pin_high(A11);
+#endif
+    // 自定义TMR2由对应模块初始化
     keyboard_pre_init_user();
 }
 
@@ -58,21 +81,23 @@ bool led_update_kb(led_t led_state)
     bool res = led_update_user(led_state);
     if (res) {
         // 根据大写锁定状态控制LED
+#ifdef LED_CAPS_LOCK_PIN
         if (led_state.caps_lock) {
             gpio_write_pin_high(LED_CAPS_LOCK_PIN);
         } else {
             gpio_write_pin_low(LED_CAPS_LOCK_PIN);
         }
+#endif
     }
     return res;
 }
 
 void keyboard_post_init_kb(void)
 {
-    // 初始化自定义WS2812控制
-    ws2812_custom_init();
+    // 初始化4LED的TMR2控制
+    tmr2_ws2812_init();
     keyboard_post_init_user();
-    SEND_STRING("Custom WS2812 INIT - 4LED & 50LED Separated\r\n");
+    SEND_STRING("TMR2 WS2812 (4LED) INIT\r\n");
 }
 
 int main()
@@ -88,10 +113,6 @@ int main()
 #if !defined ESB_ENABLE || ESB_ENABLE != 2
     keyboard_setup();
 #endif
-    gpio_set_pin_output(A11);
-    gpio_set_pin_output(A10);
-    gpio_write_pin_low(A11);
-    gpio_write_pin_low(A10);
     protocol_pre_init();
     keyboard_init();
     protocol_post_init();

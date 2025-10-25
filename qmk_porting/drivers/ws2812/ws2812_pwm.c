@@ -4,21 +4,16 @@
 
 /* Adapted from https://github.com/joewa/WS2812-LED-Driver_ChibiOS/ */
 
-
 #ifdef WS2812_RGBW
 #define WS2812_CHANNELS 4
 #else
 #define WS2812_CHANNELS 3
 #endif
 
-
 #ifndef WS2812_PWM_DRIVER
-#pragma warning "WS2812_PWM_DRIVER is not defined, using default value"
-#define WS2812_PWM_DRIVER 2 // TMR2
-#define WS2812_DI_PIN     A11
+#define WS2812_PWM_DRIVER 1 // TMR1
+#define WS2812_DI_PIN     A10
 #endif
-
-#define PWM_Times_1 1
 
 #if WS2812_PWM_DRIVER == 1
 #define WS2812_PWM_CNT_END_REG R32_TMR1_CNT_END
