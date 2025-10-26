@@ -11,10 +11,16 @@ the Free Software Foundation, either version 2 of the License, or
 #include "pin_defs.h"
 #include "ws2812_tmr2.h"
 
-#define PERIOD_TICKS 75
-#define T1H_TICKS 40
-#define T0H_TICKS 20
-#define RESET_L_BITS 80
+// 针对40MHz时钟调整WS2812的时序参数
+// WS2812协议大致时序：(以40MHz，即25ns/周期计算)
+// T1H: 0.8us ≈ 32cycles
+// T0H: 0.4us ≈ 16cycles
+// T_total(周期): 1.25us ≈ 50cycles
+
+#define PERIOD_TICKS 50    // 总周期1.25us
+#define T1H_TICKS    32    // 1高电平0.8us
+#define T0H_TICKS    16    // 0高电平0.4us
+#define RESET_L_BITS 80    // reset信号 80*1.25us=100us
 
 #define LED_COUNT_TMR2 4
 #define BITS_PER_LED 24
@@ -62,6 +68,11 @@ void tmr2_ws2812_init(void) {
     TMR2_PWMInit(High_Level, PWM_Times_1);
     TMR2_PWMEnable();
     TMR2_Enable();
+    tmr2_led_t led0 = {1, 1, 1};
+    tmr2_led_t led1 = {0, 1, 1};
+    tmr2_led_t led2 = {1, 1, 0};
+    tmr2_led_t led3 = {1, 0, 1};
+    tmr2_ws2812_update_4_colors(led0, led1, led2, led3);
 }
 
 void tmr2_ws2812_update_4(uint8_t r, uint8_t g, uint8_t b) {
