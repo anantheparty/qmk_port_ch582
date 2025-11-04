@@ -9,12 +9,11 @@ the Free Software Foundation, either version 2 of the License, or
 
 #pragma once
 
-#include "ws2812_common.h"
+#include <stdint.h>
 
-// 基于TMR2+DMA的WS2812（4颗）发送接口（PA11）
-void tmr2_ws2812_init(void);
-void tmr2_ws2812_update_all(uint8_t r, uint8_t g, uint8_t b);
-void tmr2_ws2812_update_index(uint8_t index, led_obey_t led);
-void tmr2_ws2812_off(void);
-
-
+// 单个LED颜色（GRB顺序的物理发送，接口使用常规RGB语义）
+typedef struct {
+    uint8_t r;
+    uint8_t g;
+    uint8_t b;
+} led_obey_t;

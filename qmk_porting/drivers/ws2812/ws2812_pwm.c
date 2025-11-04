@@ -11,11 +11,13 @@
 #endif
 
 #ifndef WS2812_PWM_DRIVER
+#warning "WS2812_PWM_DRIVER is not defined"
 #define WS2812_PWM_DRIVER 1 // TMR1
 #define WS2812_DI_PIN     A10
 #endif
 
 #if WS2812_PWM_DRIVER == 1
+#warning "WS2812_PWM_DRIVER == 1"
 #define WS2812_PWM_CNT_END_REG R32_TMR1_CNT_END
 #define WS2812_DMA_CONFIG(en, start, end)       \
     TMR1_DMACfg(en, (uint16_t)(uint32_t)&start, \
@@ -35,6 +37,7 @@ __INTERRUPT __HIGH_CODE void TMR1_IRQHandler()
     } while (!(R8_SLP_CLK_OFF0 & RB_SLP_CLK_TMR1));
 }
 #elif WS2812_PWM_DRIVER == 2
+#warning "WS2812_PWM_DRIVER == 2"
 #define WS2812_PWM_CNT_END_REG R32_TMR2_CNT_END
 #define WS2812_DMA_CONFIG(en, start, end)       \
     TMR2_DMACfg(en, (uint16_t)(uint32_t)&start, \
@@ -261,23 +264,23 @@ the memory (while the DMA is reading/writing from/to a buffer, the application c
 write/read to/from the other buffer).
  */
 
-void ws2812_init(void)
-{
-    // Initialize led frame buffer
-    uint32_t i;
+// void ws2812_init(void)
+// {
+//     // Initialize led frame buffer
+//     uint32_t i;
 
-    for (i = 0; i < WS2812_COLOR_BIT_N; i++)
-        ws2812_frame_buffer[i] = WS2812_DUTYCYCLE_0; // All color bits are zero duty cycle
-    for (i = 0; i < WS2812_RESET_BIT_N; i++)
-        ws2812_frame_buffer[i + WS2812_COLOR_BIT_N] = 0; // All reset bits are zero
+//     for (i = 0; i < WS2812_COLOR_BIT_N; i++)
+//         ws2812_frame_buffer[i] = WS2812_DUTYCYCLE_0; // All color bits are zero duty cycle
+//     for (i = 0; i < WS2812_RESET_BIT_N; i++)
+//         ws2812_frame_buffer[i + WS2812_COLOR_BIT_N] = 0; // All reset bits are zero
 
-    gpio_set_pin_output(WS2812_DI_PIN);
+//     gpio_set_pin_output(WS2812_DI_PIN);
 
-    WS2812_PWM_CNT_END_REG = WS2812_PWM_PERIOD;
-    WS2812_DMA_CONFIG(ENABLE, ws2812_frame_buffer[0], ws2812_frame_buffer[WS2812_BIT_N + 1]);
-    WS2812_PWM_INIT(High_Level);
-    WS2812_PWM_DMA_INTERRUPT_ENABLE;
-}
+//     WS2812_PWM_CNT_END_REG = WS2812_PWM_PERIOD;
+//     WS2812_DMA_CONFIG(ENABLE, ws2812_frame_buffer[0], ws2812_frame_buffer[WS2812_BIT_N + 1]);
+//     WS2812_PWM_INIT(High_Level);
+//     WS2812_PWM_DMA_INTERRUPT_ENABLE;
+// }
 
 static void ws2812_write_led(uint16_t led_number, uint8_t r, uint8_t g, uint8_t b, uint8_t w)
 {
@@ -294,7 +297,6 @@ static void ws2812_write_led(uint16_t led_number, uint8_t r, uint8_t g, uint8_t 
         sys_safe_access_disable();
     } while (R8_SLP_CLK_OFF0 & RB_SLP_CLK_TMR2);
 #endif
-
     // Write color to frame buffer
     for (uint8_t bit = 0; bit < 8; bit++) {
         ws2812_frame_buffer[WS2812_RED_BIT(led_number, bit)] = ((r >> bit) & 0x01) ? WS2812_DUTYCYCLE_1 : WS2812_DUTYCYCLE_0;
@@ -306,19 +308,19 @@ static void ws2812_write_led(uint16_t led_number, uint8_t r, uint8_t g, uint8_t 
     }
 }
 
-// Setleds for standard RGB
-void ws2812_setleds(rgb_led_t *ledarray, uint16_t leds)
-{
-    if (!ws2812_power_get()) {
-        ws2812_power_toggle(true);
-    }
+// // Setleds for standard RGB
+// void ws2812_setleds(rgb_led_t *ledarray, uint16_t leds)
+// {
+//     if (!ws2812_power_get()) {
+//         ws2812_power_toggle(true);
+//     }
 
-    for (uint16_t i = 0; i < leds; i++) {
-#ifdef WS2812_RGBW
-        ws2812_write_led(i, ledarray[i].r, ledarray[i].g, ledarray[i].b, ledarray[i].w);
-#else
-        ws2812_write_led(i, ledarray[i].r, ledarray[i].g, ledarray[i].b, 0);
-#endif
-    }
-    WS2812_PWM_DMA_INTERRUPT_SET;
-}
+//     for (uint16_t i = 0; i < leds; i++) {
+// #ifdef WS2812_RGBW
+//         ws2812_write_led(i, ledarray[i].r, ledarray[i].g, ledarray[i].b, ledarray[i].w);
+// #else
+//         ws2812_write_led(i, ledarray[i].r, ledarray[i].g, ledarray[i].b, 0);
+// #endif
+//     }
+//     WS2812_PWM_DMA_INTERRUPT_SET;
+// }

@@ -42,8 +42,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define BOOTMAGIC_COLUMN 0
 
 // PWM 驱动定义
-#define WS2812_PWM_DRIVER 1         // 使用 TMR1（PA10）
-#define WS2812_DI_PIN     A10       // 接在 PA10
+#define WS2812_PWM_DRIVER 2         // 使用 TMR1（PA10）
+#define WS2812_DI_PIN     A11       // 接在 PA10
 #define WS2812_DRIVER     pwm       // 使用 PWM 驱动
 
 // WS2812 使能引脚配置

@@ -9,10 +9,10 @@ the Free Software Foundation, either version 2 of the License, or
 
 #include "CH58x_common.h"
 #include "pin_defs.h"
-#include "ws2812_tmr2.h"
+#include "ws2812_tmr1.h"
 
 // 针对40MHz时钟调整WS2812的时序参数
-// WS2812协议大致时序：(以40MHz，即25ns/周期计算)
+// WS2812协议大致时序：（以40MHz，即25ns/周期计算）
 // T1H: 0.8us ≈ 32cycles
 // T0H: 0.4us ≈ 16cycles
 // T_total(周期): 1.25us ≈ 50cycles
@@ -22,12 +22,12 @@ the Free Software Foundation, either version 2 of the License, or
 #define T0H_TICKS    16    // 0高电平0.4us
 #define RESET_L_BITS 80    // reset信号 80*1.25us=100us
 
-#define LED_COUNT_TMR2 4
+#define LED_COUNT_TMR1 50
 #define BITS_PER_LED 24
-#define FRAME_BITS_TMR2 (LED_COUNT_TMR2 * BITS_PER_LED)
-#define DMA_BUF_LEN_TMR2 (FRAME_BITS_TMR2 + RESET_L_BITS)
+#define FRAME_BITS_TMR1 (LED_COUNT_TMR1 * BITS_PER_LED)
+#define DMA_BUF_LEN_TMR1 (FRAME_BITS_TMR1 + RESET_L_BITS)
 
-__attribute__ ((aligned (4))) static uint32_t TMR2_DmaBuf[DMA_BUF_LEN_TMR2];
+__attribute__ ((aligned (4))) static uint32_t TMR1_DmaBuf[DMA_BUF_LEN_TMR1];
 
 static inline void EncodeByte(uint8_t val, uint32_t *dst) {
     for (int b = 7; b >= 0; --b) {
@@ -36,8 +36,8 @@ static inline void EncodeByte(uint8_t val, uint32_t *dst) {
 }
 
 static void BuildFrameAll(uint8_t r, uint8_t g, uint8_t b) {
-    uint32_t *p = TMR2_DmaBuf;
-    for (int i = 0; i < LED_COUNT_TMR2; i++) {
+    uint32_t *p = TMR1_DmaBuf;
+    for (int i = 0; i < LED_COUNT_TMR1; i++) {
         EncodeByte(g, p); p += 8;
         EncodeByte(r, p); p += 8;
         EncodeByte(b, p); p += 8;
@@ -45,18 +45,17 @@ static void BuildFrameAll(uint8_t r, uint8_t g, uint8_t b) {
     for (int i = 0; i < RESET_L_BITS; ++i) *p++ = 0;
 }
 
-
 static void UpdateLedAtIndex(uint8_t index, uint8_t r, uint8_t g, uint8_t b) {
-    if (index >= LED_COUNT_TMR2) return;
+    if (index >= LED_COUNT_TMR1) return;
     
-    uint32_t *p = TMR2_DmaBuf + (index * BITS_PER_LED);
+    uint32_t *p = TMR1_DmaBuf + (index * BITS_PER_LED);
     EncodeByte(g, p); p += 8;
     EncodeByte(r, p); p += 8;
     EncodeByte(b, p);
 }
 
 static void BuildFrameCycle(void) {
-    uint32_t *p = TMR2_DmaBuf;
+    uint32_t *p = TMR1_DmaBuf;
     uint8_t colors[7][3] = {
         {7, 0, 0},   // 红色
         {0, 7, 0},   // 绿色
@@ -67,7 +66,7 @@ static void BuildFrameCycle(void) {
         {7, 7, 7}    // 白色
     };
     
-    for (int i = 0; i < LED_COUNT_TMR2; i++) {
+    for (int i = 0; i < LED_COUNT_TMR1; i++) {
         int color_index = i % 7;
         EncodeByte(colors[color_index][1], p); p += 8; // G
         EncodeByte(colors[color_index][0], p); p += 8; // R
@@ -76,25 +75,24 @@ static void BuildFrameCycle(void) {
     for (int i = 0; i < RESET_L_BITS; ++i) *p++ = 0;
 }
 
-void tmr2_ws2812_init(void) {
-    GPIOA_ModeCfg(GPIO_Pin_11, GPIO_ModeOut_PP_5mA);
-    TMR2_PWMCycleCfg(PERIOD_TICKS);
-    TMR2_DMACfg(ENABLE,(uint16_t)(uint32_t)&TMR2_DmaBuf[0],(uint16_t)(uint32_t)&TMR2_DmaBuf[DMA_BUF_LEN_TMR2],Mode_LOOP);
-    TMR2_PWMInit(High_Level, PWM_Times_1);
-    TMR2_PWMEnable();
-    TMR2_Enable();
+void tmr1_ws2812_init(void) {
+    GPIOA_ModeCfg(GPIO_Pin_10, GPIO_ModeOut_PP_5mA);
+    TMR1_PWMCycleCfg(PERIOD_TICKS);
+    TMR1_DMACfg(ENABLE,(uint16_t)(uint32_t)&TMR1_DmaBuf[0],(uint16_t)(uint32_t)&TMR1_DmaBuf[DMA_BUF_LEN_TMR1],Mode_LOOP);
+    TMR1_PWMInit(High_Level, PWM_Times_1);
+    TMR1_PWMEnable();
+    TMR1_Enable();
     BuildFrameCycle();
 }
 
-void tmr2_ws2812_update_all(uint8_t r, uint8_t g, uint8_t b) {
+void tmr1_ws2812_update_all(uint8_t r, uint8_t g, uint8_t b) {
     BuildFrameAll(r, g, b);
 }
 
-
-void tmr2_ws2812_update_index(uint8_t index, led_obey_t led) {
+void tmr1_ws2812_update_index(uint8_t index, led_obey_t led) {
     UpdateLedAtIndex(index, led.r, led.g, led.b);
 }
 
-void tmr2_ws2812_off(void) {
+void tmr1_ws2812_off(void) {
     BuildFrameAll(0, 0, 0);
 }

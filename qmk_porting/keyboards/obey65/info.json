@@ -1,107 +1,62 @@
 {
   "name": "Obey65",
   "vendorId": "0xCAFE",
-  "productId": "0x0b97",
+  "productId": "0x0B97",
   "customKeycodes": [
     {
-      "name": "USB",
-      "title": "USB MODE",
-      "shortName": "USB"
+      "name": "KC_BOOTLOADER_JUMP",
+      "title": "Bootloader Jump",
+      "shortName": "BOOT"
     },
     {
-      "name": "BLE1",
-      "title": "Tap = Use BLE slot 1, Hold = Clean BLE slot 1 binding",
-      "shortName": "BLE1"
+      "name": "KC_RGB_DEBUG",
+      "title": "RGB Debug",
+      "shortName": "RGBDBG"
     },
     {
-      "name": "BLE2",
-      "title": "Tap = Use BLE slot 2, Hold = Clean BLE slot 2 binding",
-      "shortName": "BLE2"
+      "name": "KC_LED_TOGGLE",
+      "title": "LED Toggle",
+      "shortName": "LED_TOG"
     },
     {
-      "name": "BLE3",
-      "title": "Tap = Use BLE slot 3, Hold = Clean BLE slot 3 binding",
-      "shortName": "BLE3"
+      "name": "KC_RGB_R_MINUS",
+      "title": "Red -",
+      "shortName": "R-"
     },
     {
-      "name": "BLE4",
-      "title": "Tap = Use BLE slot 4, Hold = Clean BLE slot 4 binding",
-      "shortName": "BLE4"
+      "name": "KC_RGB_R_PLUS",
+      "title": "Red +",
+      "shortName": "R+"
     },
     {
-      "name": "BLE5",
-      "title": "Tap = Use BLE slot 5, Hold = Clean BLE slot 5 binding",
-      "shortName": "BLE5"
+      "name": "KC_RGB_G_MINUS",
+      "title": "Green -",
+      "shortName": "G-"
     },
     {
-      "name": "BLE6",
-      "title": "Tap = Use BLE slot 6, Hold = Clean BLE slot 6 binding",
-      "shortName": "BLE6"
+      "name": "KC_RGB_G_PLUS",
+      "title": "Green +",
+      "shortName": "G+"
     },
     {
-      "name": "BLE7",
-      "title": "Tap = Use BLE slot 7, Hold = Clean BLE slot 7 binding",
-      "shortName": "BLE7"
+      "name": "KC_RGB_B_MINUS",
+      "title": "Blue -",
+      "shortName": "B-"
     },
     {
-      "name": "BLE8",
-      "title": "Tap = Use BLE slot 8, Hold = Clean BLE slot 8 binding",
-      "shortName": "BLE8"
+      "name": "KC_RGB_B_PLUS",
+      "title": "Blue +",
+      "shortName": "B+"
     },
     {
-      "name": "BLE9",
-      "title": "Tap = Use BLE slot 9, Hold = Clean BLE slot 9 binding",
-      "shortName": "BLE9"
+      "name": "KC_BRIGHTNESS_MINUS",
+      "title": "Brightness -",
+      "shortName": "BR-"
     },
     {
-      "name": "BLE10",
-      "title": "Tap = Use BLE slot 10, Hold = Clean BLE slot 10 binding",
-      "shortName": "BLE10"
-    },
-    {
-      "name": "BLE11",
-      "title": "Tap = Use BLE slot 11, Hold = Clean BLE slot 11 binding",
-      "shortName": "BLE11"
-    },
-    {
-      "name": "BLE12",
-      "title": "Tap = Use BLE slot 12, Hold = Clean BLE slot 12 binding",
-      "shortName": "BLE12"
-    },
-    {
-      "name": "BLE13",
-      "title": "Tap = Use BLE slot 13, Hold = Clean BLE slot 13 binding",
-      "shortName": "BLE13"
-    },
-    {
-      "name": "BLE14",
-      "title": "Tap = Use BLE slot 14, Hold = Clean BLE slot 14 binding",
-      "shortName": "BLE14"
-    },
-    {
-      "name": "BLE15",
-      "title": "Tap = Use BLE slot 15, Hold = Clean BLE slot 15 binding",
-      "shortName": "BLE15"
-    },
-    {
-      "name": "BLE16",
-      "title": "Tap = Use BLE slot 16, Hold = Clean BLE slot 16 binding",
-      "shortName": "BLE16"
-    },
-    {
-      "name": "BC_A",
-      "title": "Clean ALL BLE slot binding",
-      "shortName": "BC_A"
-    },
-    {
-      "name": "2.4G",
-      "title": "ESB MODE(2.4G mode)",
-      "shortName": "2.4G"
-    },
-    {
-      "name": "BAT",
-      "title": "Enable battery lever indicator",
-      "shortName": "BAT"
+      "name": "KC_BRIGHTNESS_PLUS",
+      "title": "Brightness +",
+      "shortName": "BR+"
     }
   ],
   "matrix": {
@@ -124,10 +79,16 @@
         "0,10",
         "0,11",
         "0,12",
+        {
+          "w": 2
+        },
         "0,13",
         "0,14"
       ],
       [
+        {
+          "w": 1.5
+        },
         "1,0",
         "1,1",
         "1,2",
@@ -142,14 +103,14 @@
         "1,11",
         "1,12",
         {
-          "w": 2
+          "w": 1.5
         },
         "1,13",
         "1,14"
       ],
       [
         {
-          "w": 1.5
+          "w": 1.75
         },
         "2,0",
         "2,1",
@@ -163,18 +124,18 @@
         "2,9",
         "2,10",
         "2,11",
-        "2,12",
         {
-          "w": 1.5
+          "w": 2.25
         },
         "2,13",
         "2,14"
       ],
       [
         {
-          "w": 1.75
+          "w": 2
         },
         "3,0",
+        "3,1",
         "3,2",
         "3,3",
         "3,4",
@@ -184,11 +145,10 @@
         "3,8",
         "3,9",
         "3,10",
-        "3,11",
-        "3,12",
         {
-          "w": 1.25
+          "w": 2
         },
+        "3,11",
         "3,13",
         "3,14"
       ],
@@ -197,40 +157,39 @@
           "w": 1.25
         },
         "4,0",
-        "4,1",
-        "4,2",
-        "4,3",
-        "4,4",
-        "4,5",
-        "4,6",
-        "4,7",
-        "4,8",
-        "4,9",
-        "4,10",
-        "4,11",
-        "4,12",
-        "4,13"
-      ],
-      [
         {
           "w": 1.25
         },
-        "5,0",
-        "5,1",
-        "5,2",
-        "5,3",
+        "4,1",
+        {
+          "w": 1.25
+        },
+        "4,2",
         {
           "w": 6.25
         },
-        "5,8",
+        "4,5",
         {
           "w": 1.25
         },
-        "5,10",
-        "5,11",
-        "5,12",
-        "5,13"
+        "4,8",
+        {
+          "w": 1.25
+        },
+        "4,9",
+        {
+          "x": 0.5
+        },
+        "4,12",
+        "4,13",
+        "4,14"
       ]
     ]
-  }
-} 
+  },
+  "keycodes": [
+    "qmk_lighting"
+  ],
+  "menus": [
+    "qmk_rgb_matrix"
+  ]
+}

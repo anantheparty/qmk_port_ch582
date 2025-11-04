@@ -18,6 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "quantum.h"
 #include "led.h"
 #include "ws2812_tmr2.h"
+#include "ws2812_tmr1.h"
 #include "qmk_config.h"
 #include "pin_defs.h"
 
@@ -32,13 +33,16 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #endif
 
 #ifdef RGB_MATRIX_ENABLE
+#warning "RGB_MATRIX_ENABLE is defined"
 // RGB Matrix LED 位置配置 - 50颗 LED 沿一条直线排列（从左到右）
-led_config_t g_led_config = { { // Key Matrix to LED Index
-                               { NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED },
-                               { NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED },
-                               { NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED },
-                               { NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED },
-                               { NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED, NO_LED } },
+led_config_t g_led_config = { 
+{ // Key Matrix to LED Index
+    { 48,45,42,39,36,33,30,27,24,21,18,15,12, 9, 6 },
+    { 47,44,41,38,35,32,29,26,23,20,17,14,11, 8, 5 },
+    { 46,43,40,37,34,31,28,25,22,19,16,13,10, 7, 4 },
+    { 45,42,39,36,33,30,27,24,21,18,15,12, 9, 6, 3 },
+    { 44,41,38,35,32,29,26,23,20,17,14,11, 8, 5, 2 }
+},
                              { // LED Index to Physical Position - 线性分布在 (x:0..224, y:8)
                                {   0,  8 }, {   5,  8 }, {  10,  8 }, {  15,  8 }, {  20,  8 },
                                {  25,  8 }, {  30,  8 }, {  35,  8 }, {  40,  8 }, {  45,  8 },
@@ -51,16 +55,16 @@ led_config_t g_led_config = { { // Key Matrix to LED Index
                                { 200,  8 }, { 205,  8 }, { 210,  8 }, { 215,  8 }, { 220,  8 },
                                { 225,  8 }, { 230,  8 }, { 235,  8 }, { 240,  8 }, { 245,  8 } },
                              { // LED Index to Flag - 全部为装饰灯
-                               LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW,
-                               LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW,
-                               LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW,
-                               LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW,
-                               LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW,
-                               LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW,
-                               LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW,
-                               LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW,
-                               LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW,
-                               LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW, LED_FLAG_UNDERGLOW } };
+                               LED_FLAG_KEYLIGHT, LED_FLAG_KEYLIGHT, LED_FLAG_KEYLIGHT, LED_FLAG_KEYLIGHT, LED_FLAG_KEYLIGHT,
+                               LED_FLAG_KEYLIGHT, LED_FLAG_KEYLIGHT, LED_FLAG_KEYLIGHT, LED_FLAG_KEYLIGHT, LED_FLAG_KEYLIGHT,
+                               LED_FLAG_KEYLIGHT, LED_FLAG_KEYLIGHT, LED_FLAG_KEYLIGHT, LED_FLAG_KEYLIGHT, LED_FLAG_KEYLIGHT,
+                               LED_FLAG_KEYLIGHT, LED_FLAG_KEYLIGHT, LED_FLAG_KEYLIGHT, LED_FLAG_KEYLIGHT, LED_FLAG_KEYLIGHT,
+                               LED_FLAG_KEYLIGHT, LED_FLAG_KEYLIGHT, LED_FLAG_KEYLIGHT, LED_FLAG_KEYLIGHT, LED_FLAG_KEYLIGHT,
+                               LED_FLAG_KEYLIGHT, LED_FLAG_KEYLIGHT, LED_FLAG_KEYLIGHT, LED_FLAG_KEYLIGHT, LED_FLAG_KEYLIGHT,
+                               LED_FLAG_KEYLIGHT, LED_FLAG_KEYLIGHT, LED_FLAG_KEYLIGHT, LED_FLAG_KEYLIGHT, LED_FLAG_KEYLIGHT,
+                               LED_FLAG_KEYLIGHT, LED_FLAG_KEYLIGHT, LED_FLAG_KEYLIGHT, LED_FLAG_KEYLIGHT, LED_FLAG_KEYLIGHT,
+                               LED_FLAG_KEYLIGHT, LED_FLAG_KEYLIGHT, LED_FLAG_KEYLIGHT, LED_FLAG_KEYLIGHT, LED_FLAG_KEYLIGHT,
+                               LED_FLAG_KEYLIGHT, LED_FLAG_KEYLIGHT, LED_FLAG_KEYLIGHT, LED_FLAG_KEYLIGHT, LED_FLAG_KEYLIGHT } };
 #endif
 
 // 大写锁定LED初始化
@@ -94,10 +98,25 @@ bool led_update_kb(led_t led_state)
 
 void keyboard_post_init_kb(void)
 {
-    // 初始化4LED的TMR2控制
-    tmr2_ws2812_init();
     keyboard_post_init_user();
-    SEND_STRING("TMR2 WS2812 (4LED) INIT\r\n");
+}
+
+void ws2812_init(void)
+{
+    tmr2_ws2812_init();
+    tmr1_ws2812_init();
+}
+
+void ws2812_setleds(rgb_led_t *ledarray, uint16_t leds)
+{
+    for (uint16_t i = 0; i < leds; i++) {
+        led_obey_t led = {
+            .r = ledarray[i].r,
+            .g = ledarray[i].g,
+            .b = ledarray[i].b,
+        };
+        tmr1_ws2812_update_index(i, led);
+    }
 }
 
 int main()
