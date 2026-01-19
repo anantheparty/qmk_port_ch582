@@ -94,6 +94,7 @@ void power_mode_task(void) {
     // Phase 4.2: Periodically check battery/charging status
     if (timer_elapsed32(pm_state.last_battery_check) >= BATTERY_CHECK_INTERVAL_MS) {
         pm_state.last_battery_check = timer_read32();
+        obey65_battery_update();
         pm_state.usb_powered = obey65_battery_is_usb_connected();
         pm_state.charging = obey65_battery_is_charging();
     }
@@ -330,7 +331,7 @@ static void configure_wakeup_sources(void) {
 #endif
 }
 
-static void enter_idle_mode(void) {
+static void __attribute__((unused)) enter_idle_mode(void) {
     // Simple idle - CPU halts but peripherals keep running
     LowPower_Idle();
 }

@@ -11,13 +11,11 @@
 #endif
 
 #ifndef WS2812_PWM_DRIVER
-#warning "WS2812_PWM_DRIVER is not defined"
 #define WS2812_PWM_DRIVER 1 // TMR1
 #define WS2812_DI_PIN     A10
 #endif
 
 #if WS2812_PWM_DRIVER == 1
-#warning "WS2812_PWM_DRIVER == 1"
 #define WS2812_PWM_CNT_END_REG R32_TMR1_CNT_END
 #define WS2812_DMA_CONFIG(en, start, end)       \
     TMR1_DMACfg(en, (uint16_t)(uint32_t)&start, \
@@ -37,7 +35,6 @@ __INTERRUPT __HIGH_CODE void TMR1_IRQHandler()
     } while (!(R8_SLP_CLK_OFF0 & RB_SLP_CLK_TMR1));
 }
 #elif WS2812_PWM_DRIVER == 2
-#warning "WS2812_PWM_DRIVER == 2"
 #define WS2812_PWM_CNT_END_REG R32_TMR2_CNT_END
 #define WS2812_DMA_CONFIG(en, start, end)       \
     TMR2_DMACfg(en, (uint16_t)(uint32_t)&start, \
@@ -282,7 +279,7 @@ write/read to/from the other buffer).
 //     WS2812_PWM_DMA_INTERRUPT_ENABLE;
 // }
 
-static void ws2812_write_led(uint16_t led_number, uint8_t r, uint8_t g, uint8_t b, uint8_t w)
+static void __attribute__((unused)) ws2812_write_led(uint16_t led_number, uint8_t r, uint8_t g, uint8_t b, uint8_t w)
 {
 #if WS2812_PWM_DRIVER == 1
     do {

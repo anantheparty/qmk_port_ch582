@@ -354,7 +354,7 @@ static void esb_send_packet(uint8_t *data, uint8_t len, uint8_t pkt_type) {
 }
 
 static void esb_start_rx(void) {
-    RF_Rx(NULL, 0, 0xFF, 0x00);  // Receive any type
+    RF_Rx(esb_rx_buffer, ESB_MAX_PAYLOAD_LEN, 0xFF, 0x00);  // Receive any type
 }
 
 static void esb_hop_channel(void) {

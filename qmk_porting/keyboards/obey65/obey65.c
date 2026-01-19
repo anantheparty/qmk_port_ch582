@@ -37,7 +37,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #endif
 
 #ifdef RGB_MATRIX_ENABLE
-#warning "RGB_MATRIX_ENABLE is defined"
 // RGB Matrix LED 位置配置 - 50颗 LED 沿一条直线排列（从左到右）
 led_config_t g_led_config = { 
 { // Key Matrix to LED Index
@@ -121,11 +120,11 @@ void keyboard_post_init_kb(void)
 // Housekeeping task - called periodically from main loop
 void housekeeping_task_kb(void)
 {
-    // Wireless mode task (Phase 1.2 / Phase 4.1)
-    wireless_mode_task();
-
     // Power management task (Phase 1.4)
     power_mode_task();
+
+    // Wireless mode task (Phase 1.2 / Phase 4.1)
+    wireless_mode_task();
 
     // Status indicator task (Phase 4.3)
     status_indicator_task();
