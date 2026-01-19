@@ -52,4 +52,8 @@ list(APPEND QMK_PORTING_SOURCES "${CMAKE_CURRENT_LIST_DIR}/wireless_mode.c")
 # 提供 obey65 专用电池配置和状态查询
 list(APPEND QMK_PORTING_SOURCES "${CMAKE_CURRENT_LIST_DIR}/battery.c")
 
+# 电源管理框架 (Phase 1.4)
+# 自动休眠、唤醒管理
+list(APPEND QMK_PORTING_SOURCES "${CMAKE_CURRENT_LIST_DIR}/power_mode.c")
+
 # set(ESB_ROLE "keyboard" CACHE STRING "KB") 

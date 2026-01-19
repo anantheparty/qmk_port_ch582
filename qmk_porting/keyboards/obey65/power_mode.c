@@ -1,0 +1,273 @@
+/*
+ * Power management for Obey65
+ * Phase 1.4 - Basic power mode framework
+ */
+
+#include "power_mode.h"
+#include "CH58x_common.h"
+#include "timer.h"
+#include "gpio.h"
+#include "debug_uart.h"
+#include "qmk_config.h"
+
+#ifdef RGB_MATRIX_ENABLE
+#include "rgb_led.h"
+#include "rgb_matrix.h"
+#endif
+
+// Default timeouts (can be configured)
+#define DEFAULT_NORMAL_TIMEOUT_MS     5000      // 5 seconds
+#define DEFAULT_IDLE_TIMEOUT_MS       30000     // 30 seconds
+#define DEFAULT_SLEEP_TIMEOUT_MS      300000    // 5 minutes
+#define DEFAULT_DEEP_SLEEP_TIMEOUT_MS 1800000   // 30 minutes
+
+// Power mode state
+static struct {
+    power_mode_t current_mode;
+    power_mode_t forced_mode;
+    bool force_mode_enabled;
+    bool auto_sleep_disabled;
+    uint32_t last_activity_time;
+    uint32_t normal_timeout_ms;
+    uint32_t idle_timeout_ms;
+    uint32_t sleep_timeout_ms;
+    uint32_t deep_sleep_timeout_ms;
+} pm_state = {
+    .current_mode = POWER_MODE_ACTIVE,
+    .forced_mode = POWER_MODE_ACTIVE,
+    .force_mode_enabled = false,
+    .auto_sleep_disabled = false,
+    .last_activity_time = 0,
+    .normal_timeout_ms = DEFAULT_NORMAL_TIMEOUT_MS,
+    .idle_timeout_ms = DEFAULT_IDLE_TIMEOUT_MS,
+    .sleep_timeout_ms = DEFAULT_SLEEP_TIMEOUT_MS,
+    .deep_sleep_timeout_ms = DEFAULT_DEEP_SLEEP_TIMEOUT_MS,
+};
+
+// Mode names for debugging
+static const char* mode_names[] = {
+    "ACTIVE",
+    "NORMAL",
+    "IDLE",
+    "SLEEP",
+    "DEEP_SLEEP"
+};
+
+// Forward declarations
+static void apply_power_mode(power_mode_t mode);
+static void configure_wakeup_sources(void);
+static void enter_idle_mode(void);
+static void enter_sleep_mode(void);
+
+void power_mode_init(void) {
+    pm_state.last_activity_time = timer_read32();
+    pm_state.current_mode = POWER_MODE_ACTIVE;
+
+    DEBUG_PRINTF("[PWR] Init, mode: %s\r\n", mode_names[pm_state.current_mode]);
+}
+
+void power_mode_task(void) {
+    // Skip if forced mode is enabled
+    if (pm_state.force_mode_enabled) {
+        if (pm_state.current_mode != pm_state.forced_mode) {
+            apply_power_mode(pm_state.forced_mode);
+        }
+        return;
+    }
+
+    // Skip auto-sleep if disabled
+    if (pm_state.auto_sleep_disabled) {
+        return;
+    }
+
+    uint32_t elapsed = timer_elapsed32(pm_state.last_activity_time);
+    power_mode_t target_mode = POWER_MODE_ACTIVE;
+
+    // Determine target mode based on inactivity time
+    if (elapsed >= pm_state.deep_sleep_timeout_ms) {
+        target_mode = POWER_MODE_DEEP_SLEEP;
+    } else if (elapsed >= pm_state.sleep_timeout_ms) {
+        target_mode = POWER_MODE_SLEEP;
+    } else if (elapsed >= pm_state.idle_timeout_ms) {
+        target_mode = POWER_MODE_IDLE;
+    } else if (elapsed >= pm_state.normal_timeout_ms) {
+        target_mode = POWER_MODE_NORMAL;
+    }
+
+    // Apply mode change if needed
+    if (target_mode != pm_state.current_mode) {
+        apply_power_mode(target_mode);
+    }
+}
+
+void power_mode_on_activity(void) {
+    pm_state.last_activity_time = timer_read32();
+
+    // Wake up if in low power mode
+    if (pm_state.current_mode > POWER_MODE_ACTIVE) {
+        DEBUG_PRINTF("[PWR] Activity detected, waking up\r\n");
+        apply_power_mode(POWER_MODE_ACTIVE);
+    }
+}
+
+power_mode_t power_mode_get(void) {
+    return pm_state.current_mode;
+}
+
+const char* power_mode_name(power_mode_t mode) {
+    if (mode < POWER_MODE_COUNT) {
+        return mode_names[mode];
+    }
+    return "UNKNOWN";
+}
+
+void power_mode_set_force(power_mode_t mode) {
+    pm_state.force_mode_enabled = true;
+    pm_state.forced_mode = mode;
+    DEBUG_PRINTF("[PWR] Force mode: %s\r\n", mode_names[mode]);
+}
+
+void power_mode_disable_auto_sleep(bool disable) {
+    pm_state.auto_sleep_disabled = disable;
+    DEBUG_PRINTF("[PWR] Auto-sleep %s\r\n", disable ? "disabled" : "enabled");
+}
+
+void power_mode_set_idle_timeout(uint32_t ms) {
+    pm_state.idle_timeout_ms = ms;
+}
+
+void power_mode_set_sleep_timeout(uint32_t ms) {
+    pm_state.sleep_timeout_ms = ms;
+}
+
+bool power_mode_sleep_blocked(void) {
+    // Sleep is blocked during USB activity
+#ifdef USB_ENABLE
+    // TODO: Check USB active status
+#endif
+
+    // Sleep is blocked during BLE connection
+#ifdef BLE_ENABLE
+    // TODO: Check BLE connection status
+#endif
+
+    return pm_state.auto_sleep_disabled;
+}
+
+void power_mode_wakeup(void) {
+    pm_state.last_activity_time = timer_read32();
+    if (pm_state.current_mode != POWER_MODE_ACTIVE) {
+        apply_power_mode(POWER_MODE_ACTIVE);
+    }
+}
+
+// Internal functions
+
+static void apply_power_mode(power_mode_t mode) {
+    if (mode == pm_state.current_mode) {
+        return;
+    }
+
+    DEBUG_PRINTF("[PWR] Mode: %s -> %s\r\n",
+                 mode_names[pm_state.current_mode],
+                 mode_names[mode]);
+
+    power_mode_t prev_mode = pm_state.current_mode;
+    pm_state.current_mode = mode;
+
+    switch (mode) {
+        case POWER_MODE_ACTIVE:
+            // Full performance mode
+#ifdef RGB_MATRIX_ENABLE
+            if (prev_mode >= POWER_MODE_IDLE) {
+                rgb_matrix_enable_noeeprom();
+            }
+#endif
+            // Restore normal peripheral clocks
+            PWR_PeriphClkCfg(ENABLE, BIT_SLP_CLK_TMR0 | BIT_SLP_CLK_TMR1 |
+                                     BIT_SLP_CLK_TMR2 | BIT_SLP_CLK_TMR3);
+            break;
+
+        case POWER_MODE_NORMAL:
+            // Slightly reduced performance
+            // RGB still on but potentially reduced effects
+            break;
+
+        case POWER_MODE_IDLE:
+            // Low power idle - RGB off
+#ifdef RGB_MATRIX_ENABLE
+            rgb_matrix_disable_noeeprom();
+#endif
+            // Reduce unnecessary peripheral clocks
+            PWR_PeriphClkCfg(DISABLE, BIT_SLP_CLK_TMR2 | BIT_SLP_CLK_TMR3);
+            break;
+
+        case POWER_MODE_SLEEP:
+            enter_sleep_mode();
+            break;
+
+        case POWER_MODE_DEEP_SLEEP:
+            // For now, same as sleep
+            // TODO: Implement full shutdown mode
+            enter_sleep_mode();
+            break;
+
+        default:
+            break;
+    }
+}
+
+static void configure_wakeup_sources(void) {
+    // Configure GPIO wake sources (matrix pins)
+    // Note: This is a simplified version. Full implementation
+    // would configure specific matrix row/col pins.
+
+    PWR_PeriphWakeUpCfg(ENABLE, RB_SLP_GPIO_WAKE, Long_Delay);
+
+#ifdef USB_ENABLE
+    // USB can wake the device
+    PWR_PeriphWakeUpCfg(ENABLE, RB_SLP_USB_WAKE, Long_Delay);
+#endif
+
+#ifdef POWER_DETECT_PIN
+    // Battery/charging detection can wake
+    PWR_PeriphWakeUpCfg(ENABLE, RB_SLP_BAT_WAKE, Long_Delay);
+#endif
+}
+
+static void enter_idle_mode(void) {
+    // Simple idle - CPU halts but peripherals keep running
+    LowPower_Idle();
+}
+
+static void enter_sleep_mode(void) {
+    DEBUG_PRINTF("[PWR] Entering sleep mode...\r\n");
+
+    // Disable RGB to save power
+#ifdef RGB_MATRIX_ENABLE
+    rgbled_power_off();
+#endif
+
+    // Configure wake sources
+    configure_wakeup_sources();
+
+    // Save any state needed
+    // TODO: Save EEPROM state if needed
+
+    // Enter sleep with RAM retention
+    // RB_PWR_RAM2K | RB_PWR_RAM30K keeps both SRAM sections powered
+    LowPower_Sleep(RB_PWR_RAM2K | RB_PWR_RAM30K);
+
+    // --- Execution continues here after wakeup ---
+
+    DEBUG_PRINTF("[PWR] Woke up from sleep\r\n");
+
+    // Restore system state
+    pm_state.current_mode = POWER_MODE_ACTIVE;
+    pm_state.last_activity_time = timer_read32();
+
+    // Re-enable peripherals
+#ifdef RGB_MATRIX_ENABLE
+    rgb_matrix_enable_noeeprom();
+#endif
+}
