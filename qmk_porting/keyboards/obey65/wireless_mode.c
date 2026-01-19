@@ -234,7 +234,7 @@ static void exit_current_mode(void) {
 
         case WIRELESS_MODE_ESB:
 #ifdef ESB_ENABLE
-            // TODO: esb_deinit();
+            esb_disconnect();
 #endif
             break;
 
@@ -259,8 +259,12 @@ static void enter_mode(wireless_mode_t mode) {
 
         case WIRELESS_MODE_ESB:
 #ifdef ESB_ENABLE
-            // TODO: esb_init();
-            // TODO: esb_start_tx();
+            // Reconnect to saved receiver or start pairing
+            if (esb_has_pairing()) {
+                esb_reconnect();
+            } else {
+                esb_start_pairing();
+            }
 #endif
             break;
 

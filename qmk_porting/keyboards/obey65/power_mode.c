@@ -21,6 +21,11 @@
 #include "protocol_ble.h"
 #endif
 
+#ifdef ESB_ENABLE
+#include "wireless_mode.h"
+#include "protocol_esb.h"
+#endif
+
 // Default timeouts (can be configured)
 #define DEFAULT_NORMAL_TIMEOUT_MS     5000      // 5 seconds
 #define DEFAULT_IDLE_TIMEOUT_MS       30000     // 30 seconds
@@ -129,6 +134,13 @@ void power_mode_on_activity(void) {
     // Notify BLE of key activity (switch to low latency mode)
     if (wireless_mode_get() == WIRELESS_MODE_BLE) {
         ble_on_key_activity();
+    }
+#endif
+
+#ifdef ESB_ENABLE
+    // Notify ESB of key activity (exit low power mode)
+    if (wireless_mode_get() == WIRELESS_MODE_ESB) {
+        esb_exit_low_power();
     }
 #endif
 }
@@ -244,6 +256,13 @@ static void apply_power_mode(power_mode_t mode) {
             // Switch BLE to power saving mode when idle
             if (wireless_mode_get() == WIRELESS_MODE_BLE) {
                 ble_on_idle();
+            }
+#endif
+
+#ifdef ESB_ENABLE
+            // Switch ESB to low power mode when idle
+            if (wireless_mode_get() == WIRELESS_MODE_ESB) {
+                esb_enter_low_power();
             }
 #endif
             break;
