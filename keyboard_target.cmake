@@ -13,5 +13,5 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-set(keyboard "m2wired" CACHE STRING "KB" FORCE)
+set(keyboard "obey65" CACHE STRING "KB" FORCE)
 set(keymap "default" CACHE STRING "KB" FORCE)

@@ -21,6 +21,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "ws2812_tmr1.h"
 #include "qmk_config.h"
 #include "pin_defs.h"
+#include "debug_uart.h"
 
 #ifndef LED_CAPS_LOCK_PIN
 #define LED_CAPS_LOCK_PIN (0x80000000 | GPIO_Pin_17)
@@ -127,6 +128,10 @@ int main()
     extern void platform_run();
 
     platform_setup();
+
+    // Initialize debug UART early (if enabled)
+    DEBUG_INIT();
+    DEBUG_PRINT("Obey65 firmware starting...\r\n");
 
     protocol_setup();
 #if !defined ESB_ENABLE || ESB_ENABLE != 2

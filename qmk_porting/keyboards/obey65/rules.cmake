@@ -34,4 +34,14 @@ set(RGB_RAW_ENABLE ON CACHE BOOL "KB" FORCE)
 set(CUSTOM_WS2812_SOURCES
     "${CMAKE_CURRENT_LIST_DIR}/ws2812_tmr2.c"
 )
+
+# 调试功能 - 通过 UART2 (PB23) 输出调试信息
+# 在 keymap/rules.cmake 中启用: set(DEBUG_UART_ENABLE ON)
+option(DEBUG_UART_ENABLE "Enable debug UART output on PB23" OFF)
+if(DEBUG_UART_ENABLE)
+    add_definitions(-DDEBUG_UART_ENABLE)
+    list(APPEND QMK_PORTING_SOURCES "${CMAKE_CURRENT_LIST_DIR}/debug_uart.c")
+    message(STATUS "Obey65: Debug UART enabled (TX=PB23, 115200 baud)")
+endif()
+
 # set(ESB_ROLE "keyboard" CACHE STRING "KB") 

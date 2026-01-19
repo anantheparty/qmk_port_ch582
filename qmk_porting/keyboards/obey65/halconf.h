@@ -22,7 +22,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 // #define UART1_IO_REMAPPING
 
 // RB_PIN_UART2  -  UART2: PA6/PA7 ->  PB22/PB23
-// #define UART2_IO_REMAPPING
+#define UART2_IO_REMAPPING  // 启用 UART2 用于调试输出 (TX=PB23)
 
 // RB_PIN_UART3  -  UART3: PA4/PA5 ->  PB20/PB21
 // #define UART3_IO_REMAPPING
