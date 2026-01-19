@@ -44,4 +44,8 @@ if(DEBUG_UART_ENABLE)
     message(STATUS "Obey65: Debug UART enabled (TX=PB23, 115200 baud)")
 endif()
 
+# 无线模式管理框架 (Phase 1.2)
+# 始终包含，为 Phase 2/3 无线功能做准备
+list(APPEND QMK_PORTING_SOURCES "${CMAKE_CURRENT_LIST_DIR}/wireless_mode.c")
+
 # set(ESB_ROLE "keyboard" CACHE STRING "KB") 

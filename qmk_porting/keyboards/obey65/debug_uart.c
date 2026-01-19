@@ -102,9 +102,6 @@ void debug_hid_report(const uint8_t *report, uint8_t len) {
     debug_uart_puts("\r\n");
 }
 
-// Implement _putchar for printf_ support (optional global printf)
-void _putchar(char character) {
-    debug_uart_putc(character);
-}
+// Note: _putchar is defined in platform.c, we use direct UART2 access instead
 
 #endif // DEBUG_UART_ENABLE

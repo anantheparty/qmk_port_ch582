@@ -22,6 +22,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "qmk_config.h"
 #include "pin_defs.h"
 #include "debug_uart.h"
+#include "wireless_mode.h"
 
 #ifndef LED_CAPS_LOCK_PIN
 #define LED_CAPS_LOCK_PIN (0x80000000 | GPIO_Pin_17)
@@ -99,6 +100,10 @@ bool led_update_kb(led_t led_state)
 
 void keyboard_post_init_kb(void)
 {
+    // Initialize wireless mode management (Phase 1.2)
+    wireless_mode_init();
+    DEBUG_PRINTF("[KB] Post init complete, mode: %s\r\n", wireless_mode_name(wireless_mode_get()));
+
     keyboard_post_init_user();
 }
 
