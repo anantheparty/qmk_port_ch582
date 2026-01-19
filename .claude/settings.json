@@ -1,0 +1,56 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "#!/bin/bash\nFILE=\"$file_path\"\nif [[ \"$FILE\" == *.c ]] || [[ \"$FILE\" == *.h ]]; then\n  # 检查是否包含 DEBUG 宏但忘记禁用\n  if grep -q '#define DEBUG 1' \"$FILE\" 2>/dev/null; then\n    echo '[Warning] DEBUG 宏已启用，发布前记得禁用' >&2\n  fi\nfi\nexit 0"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "#!/bin/bash\n# 防止意外执行危险的 flash 命令\nif echo \"$command\" | grep -qE 'flash|erase|wchisp'; then\n  echo '⚠️ 检测到固件烧录命令，请确认目标设备正确' >&2\nfi\nexit 0"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "#!/bin/bash\nFILE=\"$file_path\"\n# 对 C/H 文件进行基本格式检查\nif [[ \"$FILE\" == *.c ]] || [[ \"$FILE\" == *.h ]]; then\n  # 检查文件是否以换行结尾\n  if [ -n \"$(tail -c 1 \"$FILE\")\" ]; then\n    echo '' >> \"$FILE\"\n    echo '[Auto-fix] 添加了文件末尾换行符' >&2\n  fi\nfi\nexit 0"
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(cmake:*)",
+      "Bash(ninja:*)",
+      "Bash(make:*)",
+      "Bash(git:*)",
+      "Bash(riscv-none-elf-*:*)",
+      "Bash(wchisp:*)",
+      "Read",
+      "Write",
+      "Edit"
+    ],
+    "deny": [
+      "Bash(rm -rf /)",
+      "Bash(sudo rm:*)"
+    ]
+  },
+  "env": {
+    "KEYBOARD": "",
+    "KEYMAP": "default"
+  }
+}
