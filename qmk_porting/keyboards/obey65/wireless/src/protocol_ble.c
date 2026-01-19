@@ -474,3 +474,89 @@ void ble_clear_all_bonds(void) {
 uint8_t ble_get_bond_count(void) {
     return ble_bonding_get_count();
 }
+
+// ============================================================================
+// BLE 功耗优化
+// ============================================================================
+
+// Connection parameter definitions
+// Low latency mode: 7.5ms-15ms (for typing)
+#define BLE_CONN_INTERVAL_MIN_LOW_LATENCY   6   // 7.5ms (6 * 1.25ms)
+#define BLE_CONN_INTERVAL_MAX_LOW_LATENCY   12  // 15ms
+
+// Power saving mode: 30ms-50ms (for idle)
+#define BLE_CONN_INTERVAL_MIN_POWER_SAVE    24  // 30ms
+#define BLE_CONN_INTERVAL_MAX_POWER_SAVE    40  // 50ms
+
+// Current BLE power mode
+static ble_power_mode_t currentBlePowerMode = BLE_POWER_LOW_LATENCY;
+
+/**
+ * 设置 BLE 功耗模式
+ * @param mode BLE_POWER_LOW_LATENCY (打字时) 或 BLE_POWER_SAVE (空闲时)
+ */
+void ble_set_power_mode(ble_power_mode_t mode) {
+    if (mode == currentBlePowerMode) {
+        return;  // No change needed
+    }
+
+    currentBlePowerMode = mode;
+
+    if (bleConnHandle == GAP_CONNHANDLE_INIT) {
+        return;  // Not connected, will apply when connected
+    }
+
+    // Request connection parameter update
+    uint16_t minInterval, maxInterval;
+    uint16_t latency = 0;
+    uint16_t timeout = 500;  // 5 seconds supervision timeout
+
+    if (mode == BLE_POWER_LOW_LATENCY) {
+        minInterval = BLE_CONN_INTERVAL_MIN_LOW_LATENCY;
+        maxInterval = BLE_CONN_INTERVAL_MAX_LOW_LATENCY;
+        latency = 0;  // No slave latency for low latency
+    } else {
+        minInterval = BLE_CONN_INTERVAL_MIN_POWER_SAVE;
+        maxInterval = BLE_CONN_INTERVAL_MAX_POWER_SAVE;
+        latency = 4;  // Allow skipping up to 4 connection events
+    }
+
+    // Update connection parameters
+    GAPRole_SetParameter(GAPROLE_MIN_CONN_INTERVAL, sizeof(uint16_t), &minInterval);
+    GAPRole_SetParameter(GAPROLE_MAX_CONN_INTERVAL, sizeof(uint16_t), &maxInterval);
+
+    // Request the central to update parameters
+    // Note: This is a request, the central may reject it
+    GAPRole_PeripheralConnParamUpdateReq(bleConnHandle, minInterval, maxInterval, latency, timeout, bleTaskId);
+
+#ifdef DEBUG_UART_ENABLE
+    DEBUG_PRINTF("BLE: Power mode -> %s (interval: %d-%d)\n",
+                 mode == BLE_POWER_LOW_LATENCY ? "Low Latency" : "Power Save",
+                 minInterval, maxInterval);
+#endif
+}
+
+/**
+ * 获取当前 BLE 功耗模式
+ */
+ble_power_mode_t ble_get_power_mode(void) {
+    return currentBlePowerMode;
+}
+
+/**
+ * 通知 BLE 有按键活动 - 切换到低延迟模式
+ */
+void ble_on_key_activity(void) {
+    if (bleState >= BLE_STATE_CONNECTED && currentBlePowerMode != BLE_POWER_LOW_LATENCY) {
+        ble_set_power_mode(BLE_POWER_LOW_LATENCY);
+    }
+}
+
+/**
+ * 通知 BLE 进入空闲状态 - 切换到省电模式
+ */
+void ble_on_idle(void) {
+    if (bleState >= BLE_STATE_CONNECTED && currentBlePowerMode != BLE_POWER_SAVE) {
+        ble_set_power_mode(BLE_POWER_SAVE);
+    }
+}

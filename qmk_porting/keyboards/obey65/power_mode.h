@@ -46,5 +46,8 @@ void power_mode_set_sleep_timeout(uint32_t ms);
 // Check if sleep is currently blocked
 bool power_mode_sleep_blocked(void);
 
+// Check if deep sleep is blocked (e.g., by BLE mode)
+bool power_mode_deep_sleep_blocked(void);
+
 // Wake up from sleep mode
 void power_mode_wakeup(void);

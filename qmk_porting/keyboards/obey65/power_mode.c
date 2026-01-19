@@ -1,6 +1,7 @@
 /*
  * Power management for Obey65
  * Phase 1.4 - Basic power mode framework
+ * Phase 2.5 - BLE power optimization
  */
 
 #include "power_mode.h"
@@ -13,6 +14,11 @@
 #ifdef RGB_MATRIX_ENABLE
 #include "rgb_led.h"
 #include "rgb_matrix.h"
+#endif
+
+#ifdef BLE_ENABLE
+#include "wireless_mode.h"
+#include "protocol_ble.h"
 #endif
 
 // Default timeouts (can be configured)
@@ -94,6 +100,16 @@ void power_mode_task(void) {
         target_mode = POWER_MODE_NORMAL;
     }
 
+    // Check if deep sleep is blocked (e.g., by BLE)
+    if (target_mode == POWER_MODE_DEEP_SLEEP && power_mode_deep_sleep_blocked()) {
+        target_mode = POWER_MODE_SLEEP;  // Fall back to regular sleep
+    }
+
+    // Check if sleep is blocked
+    if (target_mode == POWER_MODE_SLEEP && power_mode_sleep_blocked()) {
+        target_mode = POWER_MODE_IDLE;  // Fall back to idle
+    }
+
     // Apply mode change if needed
     if (target_mode != pm_state.current_mode) {
         apply_power_mode(target_mode);
@@ -108,6 +124,13 @@ void power_mode_on_activity(void) {
         DEBUG_PRINTF("[PWR] Activity detected, waking up\r\n");
         apply_power_mode(POWER_MODE_ACTIVE);
     }
+
+#ifdef BLE_ENABLE
+    // Notify BLE of key activity (switch to low latency mode)
+    if (wireless_mode_get() == WIRELESS_MODE_BLE) {
+        ble_on_key_activity();
+    }
+#endif
 }
 
 power_mode_t power_mode_get(void) {
@@ -146,12 +169,28 @@ bool power_mode_sleep_blocked(void) {
     // TODO: Check USB active status
 #endif
 
-    // Sleep is blocked during BLE connection
+    // Sleep is blocked during BLE connection (only deep sleep)
+    // BLE can still use idle/light sleep modes
 #ifdef BLE_ENABLE
-    // TODO: Check BLE connection status
+    if (wireless_mode_get() == WIRELESS_MODE_BLE && ble_is_connected()) {
+        // When BLE connected, block deep sleep but allow idle
+        return true;
+    }
 #endif
 
     return pm_state.auto_sleep_disabled;
+}
+
+bool power_mode_deep_sleep_blocked(void) {
+    // Deep sleep is more restrictive
+#ifdef BLE_ENABLE
+    // Block deep sleep if in BLE mode (even if disconnected, to allow reconnection)
+    if (wireless_mode_get() == WIRELESS_MODE_BLE) {
+        return true;
+    }
+#endif
+
+    return power_mode_sleep_blocked();
 }
 
 void power_mode_wakeup(void) {
@@ -200,6 +239,13 @@ static void apply_power_mode(power_mode_t mode) {
 #endif
             // Reduce unnecessary peripheral clocks
             PWR_PeriphClkCfg(DISABLE, BIT_SLP_CLK_TMR2 | BIT_SLP_CLK_TMR3);
+
+#ifdef BLE_ENABLE
+            // Switch BLE to power saving mode when idle
+            if (wireless_mode_get() == WIRELESS_MODE_BLE) {
+                ble_on_idle();
+            }
+#endif
             break;
 
         case POWER_MODE_SLEEP:
@@ -254,9 +300,19 @@ static void enter_sleep_mode(void) {
     // Save any state needed
     // TODO: Save EEPROM state if needed
 
+    // Determine sleep parameters based on current wireless mode
+    uint8_t sleep_params = RB_PWR_RAM2K | RB_PWR_RAM30K;
+
+#ifdef BLE_ENABLE
+    // If in BLE mode, keep BLE unit powered for fast reconnection
+    if (wireless_mode_get() == WIRELESS_MODE_BLE) {
+        sleep_params |= RB_PWR_EXTEND;  // Keep USB/BLE unit powered
+        DEBUG_PRINTF("[PWR] BLE mode: keeping BLE unit powered\r\n");
+    }
+#endif
+
     // Enter sleep with RAM retention
-    // RB_PWR_RAM2K | RB_PWR_RAM30K keeps both SRAM sections powered
-    LowPower_Sleep(RB_PWR_RAM2K | RB_PWR_RAM30K);
+    LowPower_Sleep(sleep_params);
 
     // --- Execution continues here after wakeup ---
 
@@ -269,5 +325,12 @@ static void enter_sleep_mode(void) {
     // Re-enable peripherals
 #ifdef RGB_MATRIX_ENABLE
     rgb_matrix_enable_noeeprom();
+#endif
+
+#ifdef BLE_ENABLE
+    // After wakeup, restart BLE advertising if in BLE mode
+    if (wireless_mode_get() == WIRELESS_MODE_BLE && !ble_is_connected()) {
+        ble_start_advertising();
+    }
 #endif
 }
