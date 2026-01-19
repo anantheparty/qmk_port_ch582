@@ -13,6 +13,7 @@
 #include "config.h"
 #include "hid_dev.h"
 #include "ble_compat.h"
+#include "ble_bonding.h"
 #include "report.h"
 
 #ifdef DEBUG_UART_ENABLE
@@ -112,7 +113,7 @@ static void ble_StateNotificationCB(gapRole_States_t newState, gapRoleEvent_t *p
                 bleConnHandle = pEvent->linkCmpl.connectionHandle;
                 HidDev_SetConnHandle(bleConnHandle);
 #ifdef DEBUG_UART_ENABLE
-                DEBUG_PRINT("BLE: Connected, handle=%d\n", bleConnHandle);
+                DEBUG_PRINTF("BLE: Connected, handle=%d\n", bleConnHandle);
 #endif
                 bleState = BLE_STATE_CONNECTED;
             }
@@ -127,7 +128,7 @@ static void ble_StateNotificationCB(gapRole_States_t newState, gapRoleEvent_t *p
         case GAPROLE_WAITING:
             if (pEvent->gap.opcode == GAP_LINK_TERMINATED_EVENT) {
 #ifdef DEBUG_UART_ENABLE
-                DEBUG_PRINT("BLE: Disconnected, reason=%d\n", pEvent->linkTerminate.reason);
+                DEBUG_PRINTF("BLE: Disconnected, reason=%d\n", pEvent->linkTerminate.reason);
 #endif
                 bleConnHandle = GAP_CONNHANDLE_INIT;
                 HidDev_SetConnHandle(GAP_CONNHANDLE_INIT);
@@ -169,7 +170,7 @@ static void ble_PairStateCB(uint16_t connHandle, uint8_t state, uint8_t status) 
             bleState = BLE_STATE_BONDED;
         } else {
 #ifdef DEBUG_UART_ENABLE
-            DEBUG_PRINT("BLE: Pairing failed, status=%d\n", status);
+            DEBUG_PRINTF("BLE: Pairing failed, status=%d\n", status);
 #endif
         }
     } else if (state == GAPBOND_PAIRING_STATE_BONDED) {
@@ -177,6 +178,14 @@ static void ble_PairStateCB(uint16_t connHandle, uint8_t state, uint8_t status) 
         DEBUG_PRINT("BLE: Bonded\n");
 #endif
         bleState = BLE_STATE_BONDED;
+    } else if (state == GAPBOND_PAIRING_STATE_BOND_SAVED) {
+#ifdef DEBUG_UART_ENABLE
+        DEBUG_PRINT("BLE: Bond saved to NV\n");
+#endif
+        // Notify bonding manager that pairing is complete
+        // Note: We don't have access to peer address here in this callback
+        // The address would need to be obtained from linkDB
+        ble_bonding_on_pair_complete(NULL, 0);
     }
 }
 
@@ -215,6 +224,9 @@ static void platform_initialize(void) {
 
     // Register TMOS task
     bleTaskId = TMOS_ProcessEventRegister(BLE_Task_ProcessEvent);
+
+    // Initialize bonding management
+    ble_bonding_init();
 
     // Setup GAP Peripheral Role Profile
     {
@@ -257,7 +269,7 @@ static void platform_initialize(void) {
     GAPRole_PeripheralStartDevice(bleTaskId, &ble_BondMgrCBs, &ble_PeripheralCBs);
 
 #ifdef DEBUG_UART_ENABLE
-    DEBUG_PRINT("BLE: Initialized, taskId=%d\n", bleTaskId);
+    DEBUG_PRINTF("BLE: Initialized, taskId=%d\n", bleTaskId);
 #endif
 }
 
@@ -404,4 +416,61 @@ void ble_disconnect(void) {
     if (bleConnHandle != GAP_CONNHANDLE_INIT) {
         GAPRole_TerminateLink(bleConnHandle);
     }
+}
+
+/**
+ * 切换到指定的配对槽位
+ */
+bool ble_switch_slot(uint8_t slot) {
+    if (slot >= BLE_MAX_BONDS) {
+        return false;
+    }
+
+    // If connected, disconnect first
+    if (bleConnHandle != GAP_CONNHANDLE_INIT) {
+        GAPRole_TerminateLink(bleConnHandle);
+    }
+
+    // Set new active slot
+    ble_bonding_set_active_slot(slot);
+
+    // Restart advertising
+    ble_start_advertising();
+
+#ifdef DEBUG_UART_ENABLE
+    DEBUG_PRINTF("BLE: Switched to slot %d\n", slot);
+#endif
+
+    return true;
+}
+
+/**
+ * 获取当前配对槽位
+ */
+uint8_t ble_get_current_slot(void) {
+    return ble_bonding_get_active_slot();
+}
+
+/**
+ * 清除所有配对信息
+ */
+void ble_clear_all_bonds(void) {
+    // Disconnect if connected
+    if (bleConnHandle != GAP_CONNHANDLE_INIT) {
+        GAPRole_TerminateLink(bleConnHandle);
+    }
+
+    // Clear all bonding data
+    ble_bonding_clear_all();
+
+#ifdef DEBUG_UART_ENABLE
+    DEBUG_PRINT("BLE: Cleared all bonds\n");
+#endif
+}
+
+/**
+ * 获取已配对设备数量
+ */
+uint8_t ble_get_bond_count(void) {
+    return ble_bonding_get_count();
 }
