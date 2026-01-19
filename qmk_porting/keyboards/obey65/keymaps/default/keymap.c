@@ -35,6 +35,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define RGB_STEP 2         // RGB调整步长
 #define BRIGHTNESS_STEP 10  // 亮度调整步长
 
+#define BLE0 BLE_SLOT0
+#define BLE1 BLE_SLOT1
+#define BLE2 BLE_SLOT2
+#define BLE3 BLE_SLOT3
+
 // 自定义按键定义（仅保留4灯带控制）
 enum custom_keycodes {
     KC_BOOTLOADER_JUMP = QK_KB_0,

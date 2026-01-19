@@ -26,6 +26,9 @@ if ls obey65_upgrade_*.uf2 1> /dev/null 2>&1; then
 fi
 
 # 进入 build 目录
+if [ ! -d "$(dirname "$0")/build" ]; then
+  mkdir -p "$(dirname "$0")/build"
+fi
 cd "$(dirname "$0")/build"
 
 # 清理旧构建内容
