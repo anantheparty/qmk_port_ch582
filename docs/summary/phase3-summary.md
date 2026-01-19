@@ -216,43 +216,79 @@ esb_state.config.kb_addr[3] = unique_id[2];
 
 ---
 
-## 待完成: 接收器固件
+## Phase 3.5: 接收器固件实现
 
-键盘端 ESB 协议已实现，但需要配套的接收器固件：
+基于 CH582F 芯片的 2.4G USB 接收器固件已完成设计和实现。
 
-1. **接收器固件设计**
-   - 使用 CH582F 芯片
-   - USB HID 设备实现
-   - RF 接收和解析
+### 硬件配置 (基于原理图)
 
-2. **接收器功能**
-   - 接收键盘 HID 报告
-   - 转发到 USB HID
-   - LED 状态反馈
-   - 配对流程处理
+| 组件 | 规格 |
+|------|------|
+| MCU | CH582F |
+| USB | PB10/PB11 (内置) |
+| LED | PA8 (状态指示) |
+| 按钮 | PA9 (配对按钮) |
+| 天线 | AN2051-245 2.4GHz |
+| 晶振 | 32MHz |
+| LDO | XC6206P332MR 3.3V |
 
-3. **硬件设计** (已提供原理图)
-   - USB 接口
-   - 2.4GHz 天线
-   - 32MHz 晶振
-   - 3.3V LDO
+### 接收器文件结构
+
+```
+qmk_porting/keyboards/obey65_receiver/
+├── qmk_config.h        # USB 描述符、GPIO 定义
+├── rules.cmake         # ESB_ENABLE=2 (dongle mode)
+├── halconf.h           # HAL 配置
+├── mcuconf.h           # MCU 配置
+├── esb_receiver.c      # RF 接收、配对、状态机
+├── esb_receiver.h      # 公共 API
+├── obey65_receiver.c   # 主函数、USB 集成
+├── debug_uart.c/h      # 调试输出
+├── info.json           # VIA 配置
+└── keymaps/default/
+    ├── keymap.c        # 空键位定义
+    └── rules.cmake     # keymap 设置
+```
+
+### 接收器状态机
+
+```
+RX_STATE_INIT → RX_STATE_UNPAIRED → RX_STATE_PAIRING
+                                          ↓
+                    RX_STATE_CONNECTED ← RX_STATE_SCANNING
+```
+
+### LED 指示
+
+| 模式 | LED 行为 |
+|------|----------|
+| 未配对 | 慢闪 (1Hz) |
+| 配对中 | 快闪 (5Hz) |
+| 已连接 | 常亮 |
+| 接收数据 | 闪烁一次 |
+
+### 构建命令
+
+```bash
+cmake -G Ninja -DKEYBOARD=obey65_receiver -DKEYMAP=default ..
+ninja
+```
 
 ---
 
 ## 已知限制
 
-1. **接收器依赖**: 键盘端已实现，但无接收器无法实际测试
-2. **单配对**: 当前仅支持与一个接收器配对
-3. **信道固定**: 配对后使用固定信道，未实现自适应跳频
+1. **单配对**: 当前仅支持与一个接收器配对
+2. **信道固定**: 配对后使用固定信道，未实现自适应跳频
 
 ---
 
 ## 待优化项
 
-1. 接收器固件开发
-2. 自适应跳频实现
-3. 实际延迟测试
-4. 功耗实测验证
+1. 自适应跳频实现
+2. 实际延迟测试
+3. 功耗实测验证
+4. EEPROM 配对信息持久化
 
 ---
 
@@ -261,8 +297,8 @@ esb_state.config.kb_addr[3] = unique_id[2];
 Phase 4 集成与优化：
 - ✅ 三模切换整合 (Phase 4.1)
 - ✅ LED 状态指示 (Phase 4.3)
+- ✅ 接收器固件设计 (Phase 3.5)
 - ⏳ 统一电源管理 (Phase 4.2)
-- ⏳ 接收器固件开发
 
 ---
 

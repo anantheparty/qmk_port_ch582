@@ -1,0 +1,12 @@
+{
+  "name": "Obey65 Dongle",
+  "vendorId": "0xCAFE",
+  "productId": "0x0B98",
+  "matrix": {
+    "rows": 0,
+    "cols": 0
+  },
+  "layouts": {
+    "keymap": []
+  }
+}

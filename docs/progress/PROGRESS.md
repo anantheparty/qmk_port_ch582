@@ -158,11 +158,12 @@ Memory region         Used Size  Region Size  %age Used
   - [x] 空闲时进入低功耗模式
   - [x] 活动时退出低功耗模式
 
-### 待完成 (接收器固件)
-
-- [ ] 接收器固件设计
-- [ ] 接收器 USB HID 实现
-- [ ] 接收器与键盘配对
+- [x] **Phase 3.5: 接收器固件设计**
+  - [x] 创建 obey65_receiver 键盘定义
+  - [x] 实现 RF 接收状态机
+  - [x] 配对流程处理
+  - [x] LED 状态指示
+  - [x] USB HID 集成接口
 
 ---
 
@@ -227,6 +228,14 @@ Memory region         Used Size  Region Size  %age Used
 ## 变更日志
 
 ### 2026-01-19
+
+**Phase 3.5: 接收器固件设计**
+- 创建 obey65_receiver 键盘定义目录
+- 实现 esb_receiver.c/h (RF 接收、配对、状态机)
+- 实现 obey65_receiver.c (主函数、USB 集成)
+- 创建 qmk_config.h, halconf.h, mcuconf.h
+- 创建 debug_uart.c/h, info.json
+- 更新 Phase 3 总结文档
 
 **Phase 4.1 & 4.3: 三模切换与状态指示** (commit: 8fec50ef)
 - USB 自动检测和模式切换
@@ -300,6 +309,7 @@ Memory region         Used Size  Region Size  %age Used
 - 项目仓库: (本地)
 - Phase 0 总结: [docs/summary/phase0-summary.md](../summary/phase0-summary.md)
 - Phase 1 总结: [docs/summary/phase1-summary.md](../summary/phase1-summary.md)
+- Phase 3 总结: [docs/summary/phase3-summary.md](../summary/phase3-summary.md)
 - 分析报告: [docs/analysis/project-analysis.md](../analysis/project-analysis.md)
 - 开发路线图: [docs/roadmap/development-roadmap.md](../roadmap/development-roadmap.md)
 - 技术文档: [docs/tech/](../tech/)
