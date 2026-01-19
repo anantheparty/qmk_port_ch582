@@ -41,7 +41,15 @@ cmake -Dkeyboard="${KEYBOARD}" -Dkeymap="${KEYMAP}" .. -G "Unix Makefiles"
 
 # 编译
 echo "开始编译..."
-if make -j"$(nproc)"; then
+if command -v nproc >/dev/null 2>&1; then
+  JOBS="$(nproc)"
+elif command -v sysctl >/dev/null 2>&1; then
+  JOBS="$(sysctl -n hw.ncpu)"
+else
+  JOBS=1
+fi
+
+if make -j"${JOBS}"; then
   echo "编译成功"
 else
   echo "编译失败"
