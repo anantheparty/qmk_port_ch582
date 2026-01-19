@@ -56,4 +56,8 @@ list(APPEND QMK_PORTING_SOURCES "${CMAKE_CURRENT_LIST_DIR}/battery.c")
 # 自动休眠、唤醒管理
 list(APPEND QMK_PORTING_SOURCES "${CMAKE_CURRENT_LIST_DIR}/power_mode.c")
 
+# 状态指示器 (Phase 4.3)
+# RGB LED 模式/电量/连接状态指示
+list(APPEND QMK_PORTING_SOURCES "${CMAKE_CURRENT_LIST_DIR}/status_indicator.c")
+
 # set(ESB_ROLE "keyboard" CACHE STRING "KB") 

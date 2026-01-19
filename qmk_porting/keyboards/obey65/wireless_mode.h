@@ -70,6 +70,20 @@ bool process_wireless_keycode(uint16_t keycode, bool pressed);
 // Format: 0x00RRGGBB
 uint32_t wireless_mode_get_indicator_color(void);
 
+// USB auto-detection
+// Enable/disable automatic USB mode switching when USB is plugged in
+void wireless_mode_set_usb_auto(bool enable);
+bool wireless_mode_get_usb_auto(void);
+
 // Debug helpers
 const char *wireless_mode_name(wireless_mode_t mode);
 const char *wireless_status_name(mode_status_t status);
+
+// Custom keycodes for mode switching
+// Define these in your keymap using these values
+#define WL_USB  0x7C00  // Switch to USB mode
+#define WL_ESB  0x7C01  // Switch to ESB/2.4G mode
+#define WL_BLE0 0x7C10  // Switch to BLE slot 0
+#define WL_BLE1 0x7C11  // Switch to BLE slot 1
+#define WL_BLE2 0x7C12  // Switch to BLE slot 2
+#define WL_BLE3 0x7C13  // Switch to BLE slot 3

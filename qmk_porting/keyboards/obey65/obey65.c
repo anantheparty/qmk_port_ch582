@@ -24,6 +24,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "debug_uart.h"
 #include "wireless_mode.h"
 #include "power_mode.h"
+#include "status_indicator.h"
 
 #ifndef LED_CAPS_LOCK_PIN
 #define LED_CAPS_LOCK_PIN (0x80000000 | GPIO_Pin_17)
@@ -107,6 +108,9 @@ void keyboard_post_init_kb(void)
     // Initialize power management (Phase 1.4)
     power_mode_init();
 
+    // Initialize status indicator (Phase 4.3)
+    status_indicator_init();
+
     DEBUG_PRINTF("[KB] Post init complete, wireless: %s, power: %s\r\n",
                  wireless_mode_name(wireless_mode_get()),
                  power_mode_name(power_mode_get()));
@@ -117,8 +121,14 @@ void keyboard_post_init_kb(void)
 // Housekeeping task - called periodically from main loop
 void housekeeping_task_kb(void)
 {
+    // Wireless mode task (Phase 1.2 / Phase 4.1)
+    wireless_mode_task();
+
     // Power management task (Phase 1.4)
     power_mode_task();
+
+    // Status indicator task (Phase 4.3)
+    status_indicator_task();
 
     housekeeping_task_user();
 }
