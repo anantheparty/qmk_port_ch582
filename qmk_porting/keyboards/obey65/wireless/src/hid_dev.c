@@ -2,6 +2,11 @@
 #include "CH58xBLE_LIB.H"
 #include "ble_compat.h"
 
+// ============================================================================
+// Connection State
+// ============================================================================
+static uint16_t hidConnHandle = GAP_CONNHANDLE_INIT;
+
 // Simple properties for GATT attributes
 static uint8_t hidPropsRead = GATT_PROP_READ;
 static uint8_t hidPropsWrite = GATT_PROP_WRITE_NO_RSP;
@@ -73,6 +78,37 @@ static const uint8_t hidReportMap[] = {
     0x81, 0x06, //     Input (Data,Var,Rel,No Wrap,Linear,Preferred State,No Null Position)
     0xC0,       //   End Collection
     0xC0,       // End Collection
+
+    // Consumer Control Report (Media Keys)
+    0x05, 0x0C, // Usage Page (Consumer Devices)
+    0x09, 0x01, // Usage (Consumer Control)
+    0xA1, 0x01, // Collection (Application)
+    0x85, HID_RPT_ID_CONSUMER_IN, //   Report ID (3)
+    0x15, 0x00, //   Logical Minimum (0)
+    0x26, 0xFF, 0x03, // Logical Maximum (1023)
+    0x19, 0x00, //   Usage Minimum (0)
+    0x2A, 0xFF, 0x03, // Usage Maximum (1023)
+    0x75, 0x10, //   Report Size (16)
+    0x95, 0x01, //   Report Count (1)
+    0x81, 0x00, //   Input (Data,Array,Abs)
+    0xC0,       // End Collection
+
+    // System Control Report (Power/Sleep)
+    0x05, 0x01, // Usage Page (Generic Desktop Ctrls)
+    0x09, 0x80, // Usage (System Control)
+    0xA1, 0x01, // Collection (Application)
+    0x85, HID_RPT_ID_SYSTEM_IN, //   Report ID (4)
+    0x19, 0x81, //   Usage Minimum (System Power Down)
+    0x29, 0x83, //   Usage Maximum (System Wake Up)
+    0x15, 0x00, //   Logical Minimum (0)
+    0x25, 0x01, //   Logical Maximum (1)
+    0x95, 0x03, //   Report Count (3)
+    0x75, 0x01, //   Report Size (1)
+    0x81, 0x02, //   Input (Data,Var,Abs)
+    0x95, 0x01, //   Report Count (1)
+    0x75, 0x05, //   Report Size (5)
+    0x81, 0x03, //   Input (Const,Var,Abs) - Padding
+    0xC0,       // End Collection
 };
 
 // HID Service Attributes
@@ -94,12 +130,18 @@ static uint8_t hidProtocolMode = HID_PROTOCOL_MODE_REPORT;
 static uint8_t hidControlPoint;
 static gattCharCfg_t hidReportKeyInClientCharCfg[GATT_MAX_NUM_CONN];
 static gattCharCfg_t hidReportMouseInClientCharCfg[GATT_MAX_NUM_CONN];
+static gattCharCfg_t hidReportConsumerInClientCharCfg[GATT_MAX_NUM_CONN];
+static gattCharCfg_t hidReportSystemInClientCharCfg[GATT_MAX_NUM_CONN];
 static uint8_t hidReportKeyIn[8];
 static uint8_t hidReportKeyOut[1];
 static uint8_t hidReportMouseIn[5];
+static uint8_t hidReportConsumerIn[2];
+static uint8_t hidReportSystemIn[1];
 static uint8_t hidReportRefKeyIn[] = { HID_RPT_ID_KEYBOARD_IN, HID_REPORT_TYPE_INPUT };
 static uint8_t hidReportRefKeyOut[] = { HID_RPT_ID_KEYBOARD_OUT, HID_REPORT_TYPE_OUTPUT };
 static uint8_t hidReportRefMouseIn[] = { HID_RPT_ID_MOUSE_IN, HID_REPORT_TYPE_INPUT };
+static uint8_t hidReportRefConsumerIn[] = { HID_RPT_ID_CONSUMER_IN, HID_REPORT_TYPE_INPUT };
+static uint8_t hidReportRefSystemIn[] = { HID_RPT_ID_SYSTEM_IN, HID_REPORT_TYPE_INPUT };
 
 // HID Information
 static const uint8_t hidInfo[] = {
@@ -250,6 +292,88 @@ static gattAttribute_t hidAttrTbl[] = {
       0,
       hidReportRefMouseIn
     },
+
+    // HID Report Consumer Input Declaration
+    { { ATT_BT_UUID_SIZE, characterUUID },
+      GATT_PERMIT_READ,
+      0,
+      &hidPropsReadNotify
+    },
+    // HID Report Consumer Input Value
+    { { ATT_BT_UUID_SIZE, hidReportUUID },
+      GATT_PERMIT_READ,
+      0,
+      hidReportConsumerIn
+    },
+    // HID Report Consumer Input Client Characteristic Configuration
+    { { ATT_BT_UUID_SIZE, clientCharCfgUUID },
+      GATT_PERMIT_READ | GATT_PERMIT_WRITE,
+      0,
+      (uint8_t *)&hidReportConsumerInClientCharCfg
+    },
+    // HID Report Consumer Input Report Reference
+    { { ATT_BT_UUID_SIZE, reportRefUUID },
+      GATT_PERMIT_READ,
+      0,
+      hidReportRefConsumerIn
+    },
+
+    // HID Report System Input Declaration
+    { { ATT_BT_UUID_SIZE, characterUUID },
+      GATT_PERMIT_READ,
+      0,
+      &hidPropsReadNotify
+    },
+    // HID Report System Input Value
+    { { ATT_BT_UUID_SIZE, hidReportUUID },
+      GATT_PERMIT_READ,
+      0,
+      hidReportSystemIn
+    },
+    // HID Report System Input Client Characteristic Configuration
+    { { ATT_BT_UUID_SIZE, clientCharCfgUUID },
+      GATT_PERMIT_READ | GATT_PERMIT_WRITE,
+      0,
+      (uint8_t *)&hidReportSystemInClientCharCfg
+    },
+    // HID Report System Input Report Reference
+    { { ATT_BT_UUID_SIZE, reportRefUUID },
+      GATT_PERMIT_READ,
+      0,
+      hidReportRefSystemIn
+    },
+
+    // Boot Keyboard Input Declaration
+    { { ATT_BT_UUID_SIZE, characterUUID },
+      GATT_PERMIT_READ,
+      0,
+      &hidPropsReadNotify
+    },
+    // Boot Keyboard Input Value
+    { { ATT_BT_UUID_SIZE, hidBootKeyInputUUID },
+      GATT_PERMIT_READ,
+      0,
+      hidReportKeyIn
+    },
+    // Boot Keyboard Input Client Characteristic Configuration
+    { { ATT_BT_UUID_SIZE, clientCharCfgUUID },
+      GATT_PERMIT_READ | GATT_PERMIT_WRITE,
+      0,
+      (uint8_t *)&hidReportKeyInClientCharCfg
+    },
+
+    // Boot Keyboard Output Declaration
+    { { ATT_BT_UUID_SIZE, characterUUID },
+      GATT_PERMIT_READ,
+      0,
+      &hidPropsReadWriteWithoutAuth
+    },
+    // Boot Keyboard Output Value
+    { { ATT_BT_UUID_SIZE, hidBootKeyOutputUUID },
+      GATT_PERMIT_READ | GATT_PERMIT_WRITE,
+      0,
+      hidReportKeyOut
+    },
 };
 
 // HID Service Callbacks
@@ -268,37 +392,52 @@ bStatus_t HidDev_AddService(void) {
 }
 
 bStatus_t HidDev_Report(uint8_t id, uint8_t type, uint8_t len, uint8_t *pData) {
+    // Check connection
+    if (hidConnHandle == GAP_CONNHANDLE_INIT) {
+        return bleNotConnected;
+    }
+
     // Find the characteristic handle based on Report ID and Type
     uint16_t handle = 0;
-    gattCharCfg_t *pCharCfg = NULL;
 
     if (type == HID_REPORT_TYPE_INPUT) {
-        if (id == HID_RPT_ID_KEYBOARD_IN) {
-            handle = hidAttrTbl[HID_REPORT_KEYBOARD_IN_IDX].handle;
-            pCharCfg = hidReportKeyInClientCharCfg;
-        } else if (id == HID_RPT_ID_MOUSE_IN) {
-            handle = hidAttrTbl[HID_REPORT_MOUSE_IN_IDX].handle;
-            pCharCfg = hidReportMouseInClientCharCfg;
+        switch (id) {
+            case HID_RPT_ID_KEYBOARD_IN:
+                handle = hidAttrTbl[HID_REPORT_KEYBOARD_IN_IDX].handle;
+                break;
+            case HID_RPT_ID_MOUSE_IN:
+                handle = hidAttrTbl[HID_REPORT_MOUSE_IN_IDX].handle;
+                break;
+            case HID_RPT_ID_CONSUMER_IN:
+                handle = hidAttrTbl[HID_REPORT_CONSUMER_IN_IDX].handle;
+                break;
+            case HID_RPT_ID_SYSTEM_IN:
+                handle = hidAttrTbl[HID_REPORT_SYSTEM_IN_IDX].handle;
+                break;
+            default:
+                return INVALIDPARAMETER;
         }
+    } else {
+        return INVALIDPARAMETER;
     }
 
     if (handle != 0) {
-        // Update value
-        GATTServApp_WriteCharCfg(0, pCharCfg, 0); // Dummy call to check cfg?
-        // Actually, we should use GATTServApp_ProcessCharCfg or sending notification manually
-        // For now, simple notification:
-        
         attHandleValueNoti_t noti;
         noti.handle = handle;
         noti.len = len;
-        noti.pValue = (uint8_t *)GATT_bm_alloc(0, ATT_HANDLE_VALUE_NOTI, len, NULL, 0);
-        
+        noti.pValue = (uint8_t *)GATT_bm_alloc(hidConnHandle, ATT_HANDLE_VALUE_NOTI, len, NULL, 0);
+
         if (noti.pValue != NULL) {
             tmos_memcpy(noti.pValue, pData, len);
-            return GATT_Notification(0, &noti, FALSE);
+            bStatus_t status = GATT_Notification(hidConnHandle, &noti, FALSE);
+            if (status != SUCCESS) {
+                GATT_bm_free((gattMsg_t *)&noti, ATT_HANDLE_VALUE_NOTI);
+            }
+            return status;
         }
+        return bleNoResources;
     }
-    
+
     return FAILURE;
 }
 
@@ -355,4 +494,16 @@ bStatus_t HidDev_WriteAttrCB(uint16_t connHandle, gattAttribute_t *pAttr,
     }
 
     return status;
+}
+
+// ============================================================================
+// Connection and State Management
+// ============================================================================
+
+void HidDev_SetConnHandle(uint16_t connHandle) {
+    hidConnHandle = connHandle;
+}
+
+uint8_t HidDev_GetKeyboardLeds(void) {
+    return hidReportKeyOut[0];
 }

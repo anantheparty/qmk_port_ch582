@@ -13,6 +13,7 @@
 #include "config.h"
 #include "hid_dev.h"
 #include "ble_compat.h"
+#include "report.h"
 
 #ifdef DEBUG_UART_ENABLE
 #include "debug_uart.h"
@@ -109,6 +110,7 @@ static void ble_StateNotificationCB(gapRole_States_t newState, gapRoleEvent_t *p
         case GAPROLE_CONNECTED:
             if (pEvent->gap.opcode == GAP_LINK_ESTABLISHED_EVENT) {
                 bleConnHandle = pEvent->linkCmpl.connectionHandle;
+                HidDev_SetConnHandle(bleConnHandle);
 #ifdef DEBUG_UART_ENABLE
                 DEBUG_PRINT("BLE: Connected, handle=%d\n", bleConnHandle);
 #endif
@@ -128,6 +130,7 @@ static void ble_StateNotificationCB(gapRole_States_t newState, gapRoleEvent_t *p
                 DEBUG_PRINT("BLE: Disconnected, reason=%d\n", pEvent->linkTerminate.reason);
 #endif
                 bleConnHandle = GAP_CONNHANDLE_INIT;
+                HidDev_SetConnHandle(GAP_CONNHANDLE_INIT);
                 bleState = BLE_STATE_IDLE;
 
                 // 断开后重新开始广播
@@ -330,12 +333,22 @@ static void send_mouse(report_mouse_t *report) {
 }
 
 static void send_extra(report_extra_t *report) {
-    // TODO: 实现 Consumer/System 报告发送
+    if (bleState < BLE_STATE_CONNECTED || bleConnHandle == GAP_CONNHANDLE_INIT) {
+        return;
+    }
+
+    if (report->report_id == REPORT_ID_CONSUMER) {
+        // Consumer Control report (2 bytes)
+        HidDev_Report(HID_RPT_ID_CONSUMER_IN, HID_REPORT_TYPE_INPUT, 2, (uint8_t *)&report->usage);
+    } else if (report->report_id == REPORT_ID_SYSTEM) {
+        // System Control report (1 byte)
+        uint8_t system_data = report->usage & 0xFF;
+        HidDev_Report(HID_RPT_ID_SYSTEM_IN, HID_REPORT_TYPE_INPUT, 1, &system_data);
+    }
 }
 
 static uint8_t ble_keyboard_leds(void) {
-    // TODO: 从 HID Output Report 获取 LED 状态
-    return 0;
+    return HidDev_GetKeyboardLeds();
 }
 
 // ============================================================================

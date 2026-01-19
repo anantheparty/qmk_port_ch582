@@ -1,3 +1,5 @@
+#pragma once
+
 #include "CH58xBLE_LIB.H"
 #include "protocol.h"
 
@@ -7,6 +9,8 @@
 // HID Report IDs
 #define HID_RPT_ID_KEYBOARD_IN  1
 #define HID_RPT_ID_MOUSE_IN     2
+#define HID_RPT_ID_CONSUMER_IN  3
+#define HID_RPT_ID_SYSTEM_IN    4
 #define HID_RPT_ID_KEYBOARD_OUT 1
 
 // Attribute Handles - HID Service
@@ -33,14 +37,19 @@ enum {
     HID_REPORT_MOUSE_IN_IDX,
     HID_REPORT_MOUSE_IN_CCCD_IDX,
     HID_REPORT_MOUSE_IN_REF_IDX,
+    HID_REPORT_CONSUMER_IN_DECL_IDX,
+    HID_REPORT_CONSUMER_IN_IDX,
+    HID_REPORT_CONSUMER_IN_CCCD_IDX,
+    HID_REPORT_CONSUMER_IN_REF_IDX,
+    HID_REPORT_SYSTEM_IN_DECL_IDX,
+    HID_REPORT_SYSTEM_IN_IDX,
+    HID_REPORT_SYSTEM_IN_CCCD_IDX,
+    HID_REPORT_SYSTEM_IN_REF_IDX,
     HID_BOOT_KEYBOARD_IN_DECL_IDX,
     HID_BOOT_KEYBOARD_IN_IDX,
     HID_BOOT_KEYBOARD_IN_CCCD_IDX,
     HID_BOOT_KEYBOARD_OUT_DECL_IDX,
     HID_BOOT_KEYBOARD_OUT_IDX,
-    HID_FEATURE_DECL_IDX,
-    HID_FEATURE_IDX,
-    HID_FEATURE_REF_IDX,
     HID_SERVICE_ATTR_COUNT
 };
 
@@ -53,4 +62,8 @@ uint8_t HidDev_ReadAttrCB(uint16_t connHandle, gattAttribute_t *pAttr,
 bStatus_t HidDev_WriteAttrCB(uint16_t connHandle, gattAttribute_t *pAttr,
                              uint8_t *pValue, uint16_t len, uint16_t offset,
                              uint8_t method);
+
+// Connection and state management
+void HidDev_SetConnHandle(uint16_t connHandle);
+uint8_t HidDev_GetKeyboardLeds(void);
 
