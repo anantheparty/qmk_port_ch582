@@ -48,4 +48,8 @@ endif()
 # 始终包含，为 Phase 2/3 无线功能做准备
 list(APPEND QMK_PORTING_SOURCES "${CMAKE_CURRENT_LIST_DIR}/wireless_mode.c")
 
+# 电池管理 (Phase 1.3)
+# 提供 obey65 专用电池配置和状态查询
+list(APPEND QMK_PORTING_SOURCES "${CMAKE_CURRENT_LIST_DIR}/battery.c")
+
 # set(ESB_ROLE "keyboard" CACHE STRING "KB") 
