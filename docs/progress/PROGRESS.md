@@ -1,74 +1,89 @@
 # Obey65 三模开发进度
 
-## 当前状态: Phase 0 - 现有架构清理
+## 当前状态: Phase 1 - 基础设施搭建
 
 ### 概览
 
 | 阶段 | 状态 | 说明 |
 |------|------|------|
-| Phase 0 | 🔄 进行中 | 清理本地代码，恢复有线编译 |
-| Phase 1 | ⏸️ 待开始 | 基础设施搭建 |
+| Phase 0 | ✅ 已完成 | 清理本地代码，恢复有线编译 |
+| Phase 1 | 🔄 进行中 | 基础设施搭建 |
 | Phase 2 | ⏸️ 待开始 | 蓝牙开发 |
 | Phase 3 | ⏸️ 待开始 | 2.4G 开发 |
 | Phase 4 | ⏸️ 待开始 | 集成与优化 |
 
 ---
 
-## Phase 0: 现有架构清理
+## Phase 0: 现有架构清理 ✅
 
-### 已完成
+**完成日期**: 2026-01-19
+**总结文档**: [docs/summary/phase0-summary.md](../summary/phase0-summary.md)
 
-- [x] 分析本地修改内容 (2026-01-19)
-  - 识别了 wireless/ 目录下的开发尝试代码
-  - 分析了 CMakeLists.txt 的修改
-  - 确认了 rules.cmake 中 BLE/ESB 配置问题
+### 主要成果
 
-- [x] 创建项目文档 (2026-01-19)
-  - 生成了项目分析报告 (docs/analysis/project-analysis.md)
-  - 生成了开发路线图 (docs/roadmap/development-roadmap.md)
-  - 生成了技术方案文档:
-    - 调试系统设计 (docs/tech/debug-system.md)
-    - 蓝牙HID设计 (docs/tech/bluetooth-hid-design.md)
-    - 2.4G协议设计 (docs/tech/2.4g-protocol-design.md)
-    - 接收器固件设计 (docs/tech/dongle-firmware-design.md)
-    - 电源管理方案 (docs/tech/power-management.md)
+- [x] 项目分析与文档生成
+- [x] 禁用 BLE/ESB 配置 (commit: 677699b9)
+- [x] 保留 wireless 代码作为参考 (commit: ec7f4ddd)
+- [x] 修复 Python 依赖 (click, cryptography, PyYAML)
+- [x] 验证编译成功，提交稳定基线 (commit: 7a4cc4df)
 
-- [x] Claude Code 配置文件提交 (commit: fcc671cd)
+### 固件状态
+
+- 主固件: text=90KB, data=1KB, bss=15KB
+- IAP: text=33KB, data=1KB, bss=7KB
+- UF2: 191KB
+
+---
+
+## Phase 1: 基础设施搭建
+
+### 待完成
+
+- [ ] 调试基础设施
+  - [ ] 串口调试输出 (UART1)
+  - [ ] 调试宏和条件编译
+  - [ ] 键盘输入回显测试
+
+- [ ] 协议抽象层重构
+  - [ ] ch582_interface_t 改进
+  - [ ] 模式切换状态机
+  - [ ] 协议注册机制
+
+- [ ] 电池检测基础
+  - [ ] ADC 初始化 (PA4)
+  - [ ] 电压读取函数
+  - [ ] 电量百分比计算
+
+- [ ] 电源管理框架
+  - [ ] 功耗模式定义
+  - [ ] 空闲检测
+  - [ ] 睡眠唤醒
 
 ### 进行中
 
-- [ ] 修复编译问题
-  - 问题1: Python 缺少 click 模块
-  - 问题2: 链接器找不到 _start 符号
-  - 问题3: Flash 使用率 0%
+(无)
 
-### 待开始
+### 已完成
 
-- [ ] 禁用 BLE/ESB 配置，恢复纯有线模式
-- [ ] 验证有线模式正常工作
-- [ ] 清理无效的本地修改
-- [ ] 提交稳定基线
+(无)
 
-### 问题记录
+---
 
-#### Issue #1: 编译时链接失败
+## 问题记录
 
-**描述**: 编译 obey65.elf 时出现 "cannot find entry symbol _start"
+### 已解决
 
-**原因**: wireless 代码被添加到源文件列表但未正确链接
+#### Issue #1: 链接器找不到 _start 符号 (Phase 0)
 
-**解决方案**:
-1. 暂时禁用 BLE_ENABLE 和 ESB_ENABLE
-2. 或者确保 wireless 代码提供完整的接口实现
+**解决**: 禁用 BLE_ENABLE 和 ESB_ENABLE
 
-#### Issue #2: Python 依赖缺失
+#### Issue #2: Python 依赖缺失 (Phase 0)
 
-**描述**: imgtool.py 签名脚本报错 "No module named 'click'"
+**解决**: `pip3 install click cryptography PyYAML --user`
 
-**解决方案**:
-```bash
-pip3 install click cbor2 intelhex
-```
+### 待解决
+
+(无)
 
 ---
 
@@ -76,23 +91,25 @@ pip3 install click cbor2 intelhex
 
 ### 2026-01-19
 
-**Claude Code 初始化**
-- 提交 Claude Code 配置文件
-- 完成项目阅读和分析
-- 生成所有设计文档
-- 识别当前编译问题
+**Phase 0 完成**
+- 清理 rules.cmake 配置
+- 保留 wireless 代码作为开发参考
+- 修复编译环境 (Python 依赖)
+- 验证编译成功，建立稳定基线
 
-**下一步计划**:
-1. 修复 Python 依赖
-2. 修改 keymaps/default/rules.cmake 禁用无线功能
-3. 验证有线编译成功
-4. 提交稳定基线
+**Git 提交**:
+- fcc671cd - Claude Code 配置
+- 7d5ff201 - 项目文档
+- 677699b9 - 禁用无线配置
+- ec7f4ddd - 保留 wireless 代码
+- 7a4cc4df - Phase 0 稳定基线
 
 ---
 
 ## 资源链接
 
 - 项目仓库: (本地)
+- Phase 0 总结: [docs/summary/phase0-summary.md](../summary/phase0-summary.md)
 - 分析报告: [docs/analysis/project-analysis.md](../analysis/project-analysis.md)
 - 开发路线图: [docs/roadmap/development-roadmap.md](../roadmap/development-roadmap.md)
 - 技术文档: [docs/tech/](../tech/)
