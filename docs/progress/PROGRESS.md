@@ -1,6 +1,6 @@
 # Obey65 三模开发进度
 
-## 当前状态: Phase 2 - 蓝牙开发 (阻塞)
+## 当前状态: Phase 2 - 蓝牙开发 (进行中)
 
 ### 概览
 
@@ -8,7 +8,7 @@
 |------|------|------|
 | Phase 0 | ✅ 已完成 | 清理本地代码，恢复有线编译 |
 | Phase 1 | ✅ 已完成 | 基础设施搭建 |
-| Phase 2 | 🚫 阻塞 | 蓝牙开发 - BLE 启动代码问题 |
+| Phase 2 | 🔄 进行中 | 蓝牙开发 - 阻塞已解决 |
 | Phase 3 | ⏸️ 待开始 | 2.4G 开发 |
 | Phase 4 | ⏸️ 待开始 | 集成与优化 |
 
@@ -66,31 +66,66 @@ Memory region         Used Size  Region Size  %age Used
 
 ---
 
-## Phase 2: 蓝牙开发 (阻塞)
+## Phase 2: 蓝牙开发 (进行中)
 
-### 阻塞问题
+### 阻塞问题 - 已解决 ✅
 
-**错误报告**: [docs/errors/phase2-ble-blocker.md](../errors/phase2-ble-blocker.md)
+**原错误报告**: [docs/errors/phase2-ble-blocker.md](../errors/phase2-ble-blocker.md)
 
 **问题**: 当启用 `BLE_ENABLE=ON` 时，链接器找不到 `_start` 符号。
 
 **根本原因**:
 - `sdk/CMakeLists.txt` 第 56 行条件逻辑
 - 当 BLE 启用时，`startup_CH583.S` 不会被包含到编译目标
-- 需要 `BUILD_WIRELESS_LIB` 或修改 CMake 逻辑
+- `BUILD_WIRELESS_FROM_SOURCE` 变量未被考虑
 
-**需要**:
-1. 研究 WCH 官方 BLE 示例的启动流程
-2. 分析其他支持 BLE 的键盘配置
-3. 可能需要修改 SDK CMakeLists.txt 或创建专用启动代码
+**解决方案** (commit: e646b2b4):
+1. 修改 `sdk/CMakeLists.txt`，添加 `BUILD_WIRELESS_FROM_SOURCE` 条件
+2. 添加 `SLEEP.c` 到编译目标
+3. 创建 `ble_support.c` 提供必需的变量定义:
+   - `MEM_BUF`: BLE 协议栈内存缓冲区
+   - `MacAddr`: MAC 地址定义
+   - 无线库接口桩函数
 
-### 待完成 (等待解决阻塞问题)
+### BLE 编译状态
 
-- [ ] BLE 初始化与广播
-- [ ] HID over GATT 服务
-- [ ] 配对管理
-- [ ] 多设备连接
-- [ ] 蓝牙功耗优化
+```
+Memory region         Used Size  Region Size  %age Used
+       FLASH:      216200 B       372 KB     56.76%
+         RAM:       27844 B        32 KB     84.97%
+```
+
+### Phase 2 任务进度
+
+- [x] **Phase 2.0: BLE 编译修复** (commit: e646b2b4)
+  - [x] 修复 CMake 启动代码条件
+  - [x] 添加 SLEEP.c 支持
+  - [x] 添加 BLE 支持桩函数
+
+- [ ] **Phase 2.1: BLE 初始化与广播**
+  - [ ] 正确初始化 TMOS 调度器
+  - [ ] 配置 BLE 内存区域
+  - [ ] 设置设备名称
+  - [ ] 测试广播功能
+
+- [ ] **Phase 2.2: HID over GATT 服务**
+  - [ ] 完善 HID Report Map
+  - [ ] 实现键盘报告发送
+  - [ ] 实现 LED 状态接收
+  - [ ] 支持 NKRO
+
+- [ ] **Phase 2.3: 配对管理**
+  - [ ] 实现配对流程
+  - [ ] 实现绑定信息存储
+  - [ ] 实现配对槽位切换
+
+- [ ] **Phase 2.4: 多设备连接**
+  - [ ] 4 设备槽位管理
+  - [ ] 设备切换逻辑
+
+- [ ] **Phase 2.5: 蓝牙功耗优化**
+  - [ ] 空闲时降低功耗
+  - [ ] 深度睡眠实现
 
 ---
 
@@ -135,6 +170,10 @@ Memory region         Used Size  Region Size  %age Used
 #### Issue #5: RB_PWR_RAM16K 未定义 (Phase 1.4)
 **解决**: 使用 RB_PWR_RAM30K (SDK 实际定义)
 
+#### Issue #6: BLE 编译阻塞 - _start 符号缺失 (Phase 2)
+**解决**: 修改 sdk/CMakeLists.txt 添加 BUILD_WIRELESS_FROM_SOURCE 条件，
+添加 SLEEP.c 和 ble_support.c (commit: e646b2b4)
+
 ### 待解决
 
 (无)
@@ -144,6 +183,12 @@ Memory region         Used Size  Region Size  %age Used
 ## 变更日志
 
 ### 2026-01-19
+
+**Phase 2 阻塞解决**
+- 修复 BLE 编译问题 (commit: e646b2b4)
+  - sdk/CMakeLists.txt: 添加 BUILD_WIRELESS_FROM_SOURCE 条件
+  - sdk/CMakeLists.txt: 添加 SLEEP.c 到编译目标
+  - 新文件: ble_support.c (MEM_BUF, MacAddr, 桩函数)
 
 **Phase 1 完成**
 
