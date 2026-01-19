@@ -166,11 +166,29 @@ Memory region         Used Size  Region Size  %age Used
 
 ---
 
-## Phase 4: 集成与优化 (待开始)
+## Phase 4: 集成与优化 (进行中)
+
+### Phase 4 任务进度
+
+- [x] **Phase 4.1: 三模切换逻辑** (commit: 8fec50ef)
+  - [x] USB 自动检测 (插入 USB 自动切换)
+  - [x] USB 拔出恢复之前无线模式
+  - [x] 模式切换按键码定义 (WL_USB/WL_ESB/WL_BLE0-3)
+  - [x] 防抖处理 (500ms)
+
+- [ ] **Phase 4.2: 统一电源管理**
+  - [ ] 充电时行为定义
+  - [ ] 模式间电源状态协调
+
+- [x] **Phase 4.3: LED 状态指示** (commit: 8fec50ef)
+  - [x] 新增 status_indicator 模块
+  - [x] 模式颜色指示 (USB=蓝/BLE=青/ESB=绿)
+  - [x] 连接状态指示 (常亮/闪烁/暗淡)
+  - [x] 电池电量指示 (4 LED)
+  - [x] 自动切换显示模式
 
 ### 待完成
 
-- [ ] 三模切换整合
 - [ ] VIA 无线配置
 - [ ] 整体功耗测试
 - [ ] 稳定性测试
@@ -209,6 +227,12 @@ Memory region         Used Size  Region Size  %age Used
 ## 变更日志
 
 ### 2026-01-19
+
+**Phase 4.1 & 4.3: 三模切换与状态指示** (commit: 8fec50ef)
+- USB 自动检测和模式切换
+- 模式切换按键码定义
+- status_indicator 模块
+- RGB LED 模式/电量/连接状态指示
 
 **Phase 2.5: 蓝牙功耗优化** (commit: fe3fb195)
 - BLE 连接状态感知的睡眠控制
