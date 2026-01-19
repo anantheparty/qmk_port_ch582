@@ -91,8 +91,8 @@ Memory region         Used Size  Region Size  %age Used
 
 ```
 Memory region         Used Size  Region Size  %age Used
-       FLASH:      216200 B       372 KB     56.76%
-         RAM:       27844 B        32 KB     84.97%
+       FLASH:      216924 B       372 KB     56.95%
+         RAM:       28124 B        32 KB     85.83%
 ```
 
 ### Phase 2 任务进度
@@ -102,17 +102,20 @@ Memory region         Used Size  Region Size  %age Used
   - [x] 添加 SLEEP.c 支持
   - [x] 添加 BLE 支持桩函数
 
-- [ ] **Phase 2.1: BLE 初始化与广播**
-  - [ ] 正确初始化 TMOS 调度器
-  - [ ] 配置 BLE 内存区域
-  - [ ] 设置设备名称
-  - [ ] 测试广播功能
+- [x] **Phase 2.1: BLE 初始化与广播** (commit: 3ec100e0)
+  - [x] GAP Peripheral Role 配置
+  - [x] 状态变化回调实现
+  - [x] 配对状态和密码回调
+  - [x] 广播数据和扫描响应配置
+  - [x] 低延迟连接参数 (7.5ms-15ms)
 
-- [ ] **Phase 2.2: HID over GATT 服务**
-  - [ ] 完善 HID Report Map
-  - [ ] 实现键盘报告发送
-  - [ ] 实现 LED 状态接收
-  - [ ] 支持 NKRO
+- [x] **Phase 2.2: HID over GATT 服务** (commit: a861c6b7)
+  - [x] 完善 HID Report Map (Keyboard/Mouse/Consumer/System)
+  - [x] 实现键盘报告发送
+  - [x] 实现 LED 状态接收 (HidDev_GetKeyboardLeds)
+  - [x] Consumer Control 支持 (媒体键)
+  - [x] System Control 支持 (电源/睡眠)
+  - [x] Boot Protocol 属性
 
 - [ ] **Phase 2.3: 配对管理**
   - [ ] 实现配对流程
@@ -183,6 +186,18 @@ Memory region         Used Size  Region Size  %age Used
 ## 变更日志
 
 ### 2026-01-19
+
+**Phase 2.2: HID over GATT 服务** (commit: a861c6b7)
+- 添加 Consumer Control 和 System Control 报告
+- 完善 HID Report Map 描述符
+- 修复连接句柄管理
+- 实现 LED 状态获取
+
+**Phase 2.1: BLE 初始化与广播** (commit: 3ec100e0)
+- 实现 GAP Peripheral Role 配置
+- 实现状态变化/配对/密码回调
+- 配置广播数据和扫描响应
+- 设置低延迟连接参数
 
 **Phase 2 阻塞解决**
 - 修复 BLE 编译问题 (commit: e646b2b4)
