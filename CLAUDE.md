@@ -81,3 +81,74 @@ ninja
 - 使用 WCH-Link 进行 SWD 调试
 - 串口日志通过 UART1 输出
 - Bootmagic Lite: 按住 ESC 进入 bootloader
+
+---
+
+# Obey65 三模开发笔记 (Sketchbook)
+
+## 当前开发状态 (2026-01-19)
+
+**Phase**: 0 - 现有架构清理
+**状态**: 文档准备完成，待清理代码恢复编译
+
+### 关键发现
+
+1. **无线库是私有的**: 项目依赖未公开的 wireless 子模块 (libXXX.a)
+2. **已有部分实现**: 本地 wireless/ 目录有 BLE HID 的初步实现
+3. **编译问题**: 当前配置同时启用了 BLE 和 ESB，但缺少完整实现
+
+### 待解决问题
+
+- [ ] 修复 Python 依赖: `pip3 install click cbor2 intelhex`
+- [ ] 禁用 BLE/ESB 恢复有线编译
+- [ ] 验证双灯带 RGB 正常工作
+
+### 重要文件位置
+
+| 用途 | 路径 |
+|------|------|
+| 键盘配置 | `qmk_porting/keyboards/obey65/` |
+| 双灯带驱动 | `obey65/ws2812_tmr1.c`, `ws2812_tmr2.c` |
+| 无线代码 (WIP) | `obey65/wireless/` |
+| 协议接口 | `qmk_porting/protocol/protocol.h` |
+| BLE SDK | `sdk/BLE_LIB/` |
+
+### 技术笔记
+
+**ch582_interface_t 接口**:
+```c
+typedef struct _ch582_interface_t {
+    host_driver_t ch582_common_driver;  // 键盘报告发送
+    ch582_driver_t ch582_platform_initialize;  // 平台初始化
+    ch582_driver_t ch582_protocol_setup;  // 协议设置
+    ch582_driver_t ch582_protocol_init;   // 协议初始化
+    ch582_driver_t ch582_platform_run;    // 主循环
+    // ...
+} ch582_interface_t;
+```
+
+**双灯带时序** (40MHz):
+- T1H = 32 cycles (0.8us)
+- T0H = 16 cycles (0.4us)
+- Period = 50 cycles (1.25us)
+- Reset = 80 bits (100us)
+
+### 下一步行动
+
+1. 执行 Phase 0 清理任务
+2. 确保有线模式稳定
+3. 开始 Phase 1 基础设施
+
+---
+
+## 文档索引
+
+- 分析报告: [docs/analysis/project-analysis.md](docs/analysis/project-analysis.md)
+- 开发路线图: [docs/roadmap/development-roadmap.md](docs/roadmap/development-roadmap.md)
+- 进度跟踪: [docs/progress/PROGRESS.md](docs/progress/PROGRESS.md)
+- 技术方案:
+  - [调试系统](docs/tech/debug-system.md)
+  - [蓝牙HID](docs/tech/bluetooth-hid-design.md)
+  - [2.4G协议](docs/tech/2.4g-protocol-design.md)
+  - [接收器固件](docs/tech/dongle-firmware-design.md)
+  - [电源管理](docs/tech/power-management.md)
