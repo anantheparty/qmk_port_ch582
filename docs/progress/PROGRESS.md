@@ -91,8 +91,8 @@ Memory region         Used Size  Region Size  %age Used
 
 ```
 Memory region         Used Size  Region Size  %age Used
-       FLASH:      216924 B       372 KB     56.95%
-         RAM:       28124 B        32 KB     85.83%
+       FLASH:      231052 B       372 KB     60.66%
+         RAM:       28332 B        32 KB     86.46%
 ```
 
 ### Phase 2 任务进度
@@ -117,14 +117,16 @@ Memory region         Used Size  Region Size  %age Used
   - [x] System Control 支持 (电源/睡眠)
   - [x] Boot Protocol 属性
 
-- [ ] **Phase 2.3: 配对管理**
-  - [ ] 实现配对流程
-  - [ ] 实现绑定信息存储
-  - [ ] 实现配对槽位切换
+- [x] **Phase 2.3: 配对管理** (commit: a71b47b9)
+  - [x] 实现配对流程 (GAPBondMgr 集成)
+  - [x] 实现绑定信息存储 (ble_bonding.c)
+  - [x] 实现配对槽位切换 (ble_switch_slot)
+  - [x] 清除所有配对 (ble_clear_all_bonds)
 
 - [ ] **Phase 2.4: 多设备连接**
-  - [ ] 4 设备槽位管理
-  - [ ] 设备切换逻辑
+  - [x] 4 设备槽位管理 (BLE_MAX_BONDS=4)
+  - [ ] 设备切换逻辑完善
+  - [ ] 与 wireless_mode 模块集成
 
 - [ ] **Phase 2.5: 蓝牙功耗优化**
   - [ ] 空闲时降低功耗
@@ -186,6 +188,12 @@ Memory region         Used Size  Region Size  %age Used
 ## 变更日志
 
 ### 2026-01-19
+
+**Phase 2.3: 配对管理** (commit: a71b47b9)
+- 新增 ble_bonding.c/h 配对槽位管理
+- 支持 4 个配对槽位切换
+- 集成 GAPBondMgr 配对数据存储
+- 添加清除配对功能
 
 **Phase 2.2: HID over GATT 服务** (commit: a861c6b7)
 - 添加 Consumer Control 和 System Control 报告
