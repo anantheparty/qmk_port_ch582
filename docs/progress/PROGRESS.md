@@ -190,9 +190,13 @@ Memory region         Used Size  Region Size  %age Used
   - [x] 电池电量指示 (4 LED)
   - [x] 自动切换显示模式
 
+- [x] **Phase 4.4: VIA 无线配置**
+  - [x] VIA keycodes 与 process_wireless_keycode 集成
+  - [x] USB/2.4G/BLE1-4 模式切换支持
+  - [x] BAT 按键显示电量
+
 ### 待完成
 
-- [ ] VIA 无线配置
 - [ ] 整体功耗测试
 - [ ] 稳定性测试
 
@@ -230,6 +234,13 @@ Memory region         Used Size  Region Size  %age Used
 ## 变更日志
 
 ### 2026-01-19
+
+**Phase 4.4: VIA 无线配置**
+- wireless_mode.c: 支持 VIA customKeycodes (QK_KB_0+N)
+- USB keycode = QK_KB_11
+- 2.4G keycode = QK_KB_28
+- BLE1-4 keycodes = QK_KB_12-15
+- BAT keycode = QK_KB_29 (显示电量 3 秒)
 
 **Phase 4.2: 统一电源管理**
 - power_mode.c: 添加 USB/充电状态追踪

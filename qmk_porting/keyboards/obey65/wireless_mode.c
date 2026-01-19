@@ -7,6 +7,8 @@
 #include "debug_uart.h"
 #include "battery.h"
 #include "timer.h"
+#include "quantum_keycodes.h"  // For QK_KB_0
+#include "status_indicator.h"  // For battery display
 
 #ifdef BLE_ENABLE
 #include "protocol_ble.h"
@@ -306,14 +308,14 @@ bool process_wireless_keycode(uint16_t keycode, bool pressed) {
         return false;
     }
 
-    // USB mode key
-    if (keycode == WL_USB) {
+    // USB mode key (WL_USB or VIA keycode QK_KB_11)
+    if (keycode == WL_USB || keycode == (QK_KB_0 + 11)) {
         wm_state.previous_mode = WIRELESS_MODE_USB;  // Remember as explicit choice
         return wireless_mode_switch(WIRELESS_MODE_USB);
     }
 
-    // 2.4G mode key
-    if (keycode == WL_ESB) {
+    // 2.4G mode key (WL_ESB or VIA keycode QK_KB_28)
+    if (keycode == WL_ESB || keycode == (QK_KB_0 + 28)) {
         wm_state.previous_mode = WIRELESS_MODE_ESB;  // Remember as explicit choice
         return wireless_mode_switch(WIRELESS_MODE_ESB);
     }
@@ -326,6 +328,22 @@ bool process_wireless_keycode(uint16_t keycode, bool pressed) {
             wireless_mode_switch_ble_slot(slot);
             return wireless_mode_switch(WIRELESS_MODE_BLE);
         }
+    }
+
+    // VIA BLE slot keys (QK_KB_12 - QK_KB_15 for BLE1-4, mapped to slot 0-3)
+    if (keycode >= (QK_KB_0 + 12) && keycode <= (QK_KB_0 + 15)) {
+        ble_slot_t slot = keycode - (QK_KB_0 + 12);  // BLE1=slot0, BLE2=slot1, etc.
+        if (slot < BLE_SLOT_MAX) {
+            wm_state.previous_mode = WIRELESS_MODE_BLE;
+            wireless_mode_switch_ble_slot(slot);
+            return wireless_mode_switch(WIRELESS_MODE_BLE);
+        }
+    }
+
+    // Battery display key (VIA keycode QK_KB_29)
+    if (keycode == (QK_KB_0 + 29)) {
+        status_indicator_show_battery(3000);  // Show battery for 3 seconds
+        return true;
     }
 
     return false;
