@@ -1,6 +1,6 @@
 # Obey65 三模开发进度
 
-## 当前状态: Phase 2 - 蓝牙开发 (待开始)
+## 当前状态: Phase 2 - 蓝牙开发 (阻塞)
 
 ### 概览
 
@@ -8,7 +8,7 @@
 |------|------|------|
 | Phase 0 | ✅ 已完成 | 清理本地代码，恢复有线编译 |
 | Phase 1 | ✅ 已完成 | 基础设施搭建 |
-| Phase 2 | ⏸️ 待开始 | 蓝牙开发 |
+| Phase 2 | 🚫 阻塞 | 蓝牙开发 - BLE 启动代码问题 |
 | Phase 3 | ⏸️ 待开始 | 2.4G 开发 |
 | Phase 4 | ⏸️ 待开始 | 集成与优化 |
 
@@ -66,9 +66,25 @@ Memory region         Used Size  Region Size  %age Used
 
 ---
 
-## Phase 2: 蓝牙开发 (待开始)
+## Phase 2: 蓝牙开发 (阻塞)
 
-### 待完成
+### 阻塞问题
+
+**错误报告**: [docs/errors/phase2-ble-blocker.md](../errors/phase2-ble-blocker.md)
+
+**问题**: 当启用 `BLE_ENABLE=ON` 时，链接器找不到 `_start` 符号。
+
+**根本原因**:
+- `sdk/CMakeLists.txt` 第 56 行条件逻辑
+- 当 BLE 启用时，`startup_CH583.S` 不会被包含到编译目标
+- 需要 `BUILD_WIRELESS_LIB` 或修改 CMake 逻辑
+
+**需要**:
+1. 研究 WCH 官方 BLE 示例的启动流程
+2. 分析其他支持 BLE 的键盘配置
+3. 可能需要修改 SDK CMakeLists.txt 或创建专用启动代码
+
+### 待完成 (等待解决阻塞问题)
 
 - [ ] BLE 初始化与广播
 - [ ] HID over GATT 服务
