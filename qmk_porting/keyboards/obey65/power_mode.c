@@ -26,6 +26,12 @@
 #include "protocol_esb.h"
 #endif
 
+// Phase 4.2: Battery integration
+#include "battery.h"
+
+// Battery check interval
+#define BATTERY_CHECK_INTERVAL_MS 1000
+
 // Default timeouts (can be configured)
 #define DEFAULT_NORMAL_TIMEOUT_MS     5000      // 5 seconds
 #define DEFAULT_IDLE_TIMEOUT_MS       30000     // 30 seconds
@@ -43,6 +49,10 @@ static struct {
     uint32_t idle_timeout_ms;
     uint32_t sleep_timeout_ms;
     uint32_t deep_sleep_timeout_ms;
+    // Phase 4.2: Power source tracking
+    bool usb_powered;
+    bool charging;
+    uint32_t last_battery_check;
 } pm_state = {
     .current_mode = POWER_MODE_ACTIVE,
     .forced_mode = POWER_MODE_ACTIVE,
@@ -53,6 +63,9 @@ static struct {
     .idle_timeout_ms = DEFAULT_IDLE_TIMEOUT_MS,
     .sleep_timeout_ms = DEFAULT_SLEEP_TIMEOUT_MS,
     .deep_sleep_timeout_ms = DEFAULT_DEEP_SLEEP_TIMEOUT_MS,
+    .usb_powered = false,
+    .charging = false,
+    .last_battery_check = 0,
 };
 
 // Mode names for debugging
@@ -78,10 +91,27 @@ void power_mode_init(void) {
 }
 
 void power_mode_task(void) {
+    // Phase 4.2: Periodically check battery/charging status
+    if (timer_elapsed32(pm_state.last_battery_check) >= BATTERY_CHECK_INTERVAL_MS) {
+        pm_state.last_battery_check = timer_read32();
+        pm_state.usb_powered = obey65_battery_is_usb_connected();
+        pm_state.charging = obey65_battery_is_charging();
+    }
+
     // Skip if forced mode is enabled
     if (pm_state.force_mode_enabled) {
         if (pm_state.current_mode != pm_state.forced_mode) {
             apply_power_mode(pm_state.forced_mode);
+        }
+        return;
+    }
+
+    // Phase 4.2: Skip auto-sleep when USB powered or charging
+    // This keeps the keyboard fully responsive when connected
+    if (pm_state.usb_powered || pm_state.charging) {
+        // Stay in active mode when USB powered
+        if (pm_state.current_mode > POWER_MODE_NORMAL) {
+            apply_power_mode(POWER_MODE_ACTIVE);
         }
         return;
     }
@@ -352,4 +382,37 @@ static void enter_sleep_mode(void) {
         ble_start_advertising();
     }
 #endif
+}
+
+// ============================================================================
+// Phase 4.2: Unified Power Management Functions
+// ============================================================================
+
+void power_mode_set_charging(bool charging) {
+    if (pm_state.charging != charging) {
+        pm_state.charging = charging;
+        DEBUG_PRINTF("[PWR] Charging: %s\r\n", charging ? "YES" : "NO");
+
+        // If started charging, wake up from any sleep mode
+        if (charging && pm_state.current_mode > POWER_MODE_ACTIVE) {
+            power_mode_wakeup();
+        }
+    }
+}
+
+bool power_mode_is_charging(void) {
+    return pm_state.charging;
+}
+
+bool power_mode_usb_powered(void) {
+    return pm_state.usb_powered;
+}
+
+power_source_t power_mode_get_source(void) {
+    if (pm_state.charging) {
+        return POWER_SOURCE_USB_CHARGING;
+    } else if (pm_state.usb_powered) {
+        return POWER_SOURCE_USB;
+    }
+    return POWER_SOURCE_BATTERY;
 }

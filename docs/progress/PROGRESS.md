@@ -177,9 +177,11 @@ Memory region         Used Size  Region Size  %age Used
   - [x] 模式切换按键码定义 (WL_USB/WL_ESB/WL_BLE0-3)
   - [x] 防抖处理 (500ms)
 
-- [ ] **Phase 4.2: 统一电源管理**
-  - [ ] 充电时行为定义
-  - [ ] 模式间电源状态协调
+- [x] **Phase 4.2: 统一电源管理**
+  - [x] 充电时行为定义 (禁用自动睡眠)
+  - [x] 模式间电源状态协调 (USB 供电时保持活动)
+  - [x] 电源来源追踪 (电池/USB/充电中)
+  - [x] power_mode API 扩展
 
 - [x] **Phase 4.3: LED 状态指示** (commit: 8fec50ef)
   - [x] 新增 status_indicator 模块
@@ -228,6 +230,14 @@ Memory region         Used Size  Region Size  %age Used
 ## 变更日志
 
 ### 2026-01-19
+
+**Phase 4.2: 统一电源管理**
+- power_mode.c: 添加 USB/充电状态追踪
+- power_mode.c: 充电时禁用自动睡眠
+- power_mode.c: USB 供电时保持活动模式
+- power_mode.h: 新增 power_source_t 枚举
+- power_mode.h: 新增 power_mode_get_source() API
+- 与 battery.c 模块集成
 
 **Phase 3.5: 接收器固件设计**
 - 创建 obey65_receiver 键盘定义目录

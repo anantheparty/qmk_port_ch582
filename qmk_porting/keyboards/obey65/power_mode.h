@@ -51,3 +51,23 @@ bool power_mode_deep_sleep_blocked(void);
 
 // Wake up from sleep mode
 void power_mode_wakeup(void);
+
+// Phase 4.2: Unified power management
+
+// Set charging state (called by battery module)
+void power_mode_set_charging(bool charging);
+
+// Check if currently charging
+bool power_mode_is_charging(void);
+
+// Check if USB power is connected
+bool power_mode_usb_powered(void);
+
+// Get current power source
+typedef enum {
+    POWER_SOURCE_BATTERY = 0,
+    POWER_SOURCE_USB,
+    POWER_SOURCE_USB_CHARGING
+} power_source_t;
+
+power_source_t power_mode_get_source(void);
