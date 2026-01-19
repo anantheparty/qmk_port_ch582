@@ -116,7 +116,7 @@ bool wireless_mode_switch_ble_slot(ble_slot_t slot) {
     // If already in BLE mode, trigger reconnection to new slot
     if (wm_state.current_mode == WIRELESS_MODE_BLE) {
 #ifdef BLE_ENABLE
-        // TODO: ble_switch_slot(slot);
+        ble_switch_slot(slot);
 #endif
     }
 
@@ -168,7 +168,7 @@ void wireless_mode_task(void) {
 
         case WIRELESS_MODE_BLE:
 #ifdef BLE_ENABLE
-            // TODO: wm_state.status = ble_get_connection_status();
+            wm_state.status = ble_is_connected() ? MODE_STATUS_CONNECTED : MODE_STATUS_CONNECTING;
 #endif
             break;
 
@@ -227,8 +227,8 @@ static void exit_current_mode(void) {
 
         case WIRELESS_MODE_BLE:
 #ifdef BLE_ENABLE
-            // TODO: ble_disconnect();
-            // TODO: ble_deinit();
+            ble_disconnect();
+            ble_stop_advertising();
 #endif
             break;
 
@@ -252,8 +252,8 @@ static void enter_mode(wireless_mode_t mode) {
 
         case WIRELESS_MODE_BLE:
 #ifdef BLE_ENABLE
-            // TODO: ble_init();
-            // TODO: ble_start_advertising(wm_state.ble_slot);
+            // BLE is initialized at startup, just switch to the slot and advertise
+            ble_switch_slot(wm_state.ble_slot);
 #endif
             break;
 
