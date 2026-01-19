@@ -1,6 +1,6 @@
 # Obey65 三模开发进度
 
-## 当前状态: Phase 2 - 蓝牙开发 (进行中)
+## 当前状态: Phase 3 - 2.4G 开发 (待开始)
 
 ### 概览
 
@@ -8,8 +8,8 @@
 |------|------|------|
 | Phase 0 | ✅ 已完成 | 清理本地代码，恢复有线编译 |
 | Phase 1 | ✅ 已完成 | 基础设施搭建 |
-| Phase 2 | 🔄 进行中 | 蓝牙开发 - 阻塞已解决 |
-| Phase 3 | ⏸️ 待开始 | 2.4G 开发 |
+| Phase 2 | ✅ 已完成 | 蓝牙开发 |
+| Phase 3 | 🔄 进行中 | 2.4G 开发 |
 | Phase 4 | ⏸️ 待开始 | 集成与优化 |
 
 ---
@@ -66,7 +66,10 @@ Memory region         Used Size  Region Size  %age Used
 
 ---
 
-## Phase 2: 蓝牙开发 (进行中)
+## Phase 2: 蓝牙开发 ✅
+
+**完成日期**: 2026-01-19
+**总结文档**: [docs/summary/phase2-summary.md](../summary/phase2-summary.md)
 
 ### 阻塞问题 - 已解决 ✅
 
@@ -87,12 +90,12 @@ Memory region         Used Size  Region Size  %age Used
    - `MacAddr`: MAC 地址定义
    - 无线库接口桩函数
 
-### BLE 编译状态
+### 固件状态
 
 ```
 Memory region         Used Size  Region Size  %age Used
-       FLASH:      231052 B       372 KB     60.66%
-         RAM:       28332 B        32 KB     86.46%
+       FLASH:      231612 B       372 KB     60.80%
+         RAM:       28340 B        32 KB     86.49%
 ```
 
 ### Phase 2 任务进度
@@ -123,14 +126,15 @@ Memory region         Used Size  Region Size  %age Used
   - [x] 实现配对槽位切换 (ble_switch_slot)
   - [x] 清除所有配对 (ble_clear_all_bonds)
 
-- [ ] **Phase 2.4: 多设备连接**
+- [x] **Phase 2.4: 多设备连接** (commit: c327f177)
   - [x] 4 设备槽位管理 (BLE_MAX_BONDS=4)
-  - [ ] 设备切换逻辑完善
-  - [ ] 与 wireless_mode 模块集成
+  - [x] 设备切换逻辑完善
+  - [x] 与 wireless_mode 模块集成
 
-- [ ] **Phase 2.5: 蓝牙功耗优化**
-  - [ ] 空闲时降低功耗
-  - [ ] 深度睡眠实现
+- [x] **Phase 2.5: 蓝牙功耗优化** (commit: fe3fb195)
+  - [x] BLE 连接状态感知的睡眠控制
+  - [x] 动态连接参数调整 (低延迟/省电模式)
+  - [x] 集成电源管理与 BLE 功耗模式
 
 ---
 
@@ -188,6 +192,17 @@ Memory region         Used Size  Region Size  %age Used
 ## 变更日志
 
 ### 2026-01-19
+
+**Phase 2.5: 蓝牙功耗优化** (commit: fe3fb195)
+- BLE 连接状态感知的睡眠控制
+- 动态连接参数调整 (7.5-15ms / 30-50ms)
+- power_mode 与 BLE 功耗模式集成
+- 睡眠时保持 BLE 单元供电 (RB_PWR_EXTEND)
+
+**Phase 2.4: 多设备连接** (commit: c327f177)
+- wireless_mode 模块与 BLE 集成
+- ble_switch_slot 函数调用
+- 模式切换时正确处理 BLE 连接
 
 **Phase 2.3: 配对管理** (commit: a71b47b9)
 - 新增 ble_bonding.c/h 配对槽位管理
