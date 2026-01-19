@@ -56,6 +56,13 @@ static uint16_t usb_ProcessEvent(uint8_t task_id, uint16_t events)
 
         run_qmk_task();
 
+#if defined(ESB_ENABLE) && (ESB_ENABLE == 2)
+        // Flush pending receiver reports to USB when in dongle mode.
+        extern bool receiver_send_usb_reports(void);
+        while (receiver_send_usb_reports()) {
+        }
+#endif
+
         keyboard_check_protocol_mode();
 #ifdef POWER_DETECT_PIN
         if (!gpio_read_pin(POWER_DETECT_PIN)) {

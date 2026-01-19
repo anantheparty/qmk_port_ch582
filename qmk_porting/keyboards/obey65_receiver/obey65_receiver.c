@@ -10,12 +10,12 @@
 #include "config.h"
 #include "timer.h"
 #include "gpio.h"
+#include "quantum.h"
+#include "report.h"
+#include "usb_interface.h"
 
 #include "esb_receiver.h"
-
-#ifdef DEBUG_UART_ENABLE
 #include "debug_uart.h"
-#endif
 
 // ============================================================================
 // Global State
@@ -58,23 +58,27 @@ bool receiver_send_usb_reports(void) {
 
     // Check for keyboard report
     if (esb_receiver_get_keyboard_report(report, &len)) {
-        extern void usb_send_keyboard_report(uint8_t *report, uint8_t len);
-        usb_send_keyboard_report(report, len);
+        hid_keyboard_send_report(KEYBOARD_MODE_BIOS, report, len);
         sent = true;
     }
 
     // Check for mouse report
     if (esb_receiver_get_mouse_report(report, &len)) {
-        extern void usb_send_mouse_report(uint8_t *report, uint8_t len);
-        usb_send_mouse_report(report, len);
+        uint8_t report_to_send[6];
+        report_to_send[0] = REPORT_ID_MOUSE;
+        memcpy(report_to_send + 1, report, len);
+        hid_exkey_send_report(report_to_send, len + 1);
         sent = true;
     }
 
     // Check for consumer report
     uint16_t usage;
     if (esb_receiver_get_consumer_report(&usage)) {
-        extern void usb_send_consumer_report(uint16_t usage);
-        usb_send_consumer_report(usage);
+        report_extra_t consumer_report = {
+            .report_id = REPORT_ID_CONSUMER,
+            .usage = usage
+        };
+        hid_exkey_send_report((uint8_t *)&consumer_report, sizeof(consumer_report));
         sent = true;
     }
 
@@ -135,8 +139,7 @@ int main(void) {
 void matrix_init_custom(void) {}
 bool matrix_scan_custom(matrix_row_t current_matrix[]) { return false; }
 
+#ifndef NO_ACTION_LAYER
 // No layers for receiver
 layer_state_t layer_state_set_kb(layer_state_t state) { return state; }
-
-// Process record not needed
-bool process_record_kb(uint16_t keycode, keyrecord_t *record) { return true; }
+#endif

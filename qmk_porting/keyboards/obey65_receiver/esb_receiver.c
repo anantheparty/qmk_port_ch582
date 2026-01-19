@@ -236,7 +236,7 @@ static void esb_rx_set_channel(uint8_t channel_idx) {
     rx_state.current_channel = channel_idx;
 
     uint32_t freq = ESB_BASE_FREQ + esb_freq_table[channel_idx] * 1000;
-    RF_SetFrequency(freq);
+    RF_SetFrequency(freq, channel_idx);
 }
 
 static void esb_rx_start_rx(void) {

@@ -24,7 +24,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #ifdef BLE_ENABLE
 #include "protocol_ble.h"
 #endif
-#ifdef ESB_ENABLE
+#if defined(ESB_ENABLE) && (ESB_ENABLE == 1)
 #include "protocol_esb.h"
 #endif
 #include "config.h"

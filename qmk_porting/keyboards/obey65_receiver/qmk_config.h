@@ -12,9 +12,12 @@
 #define MANUFACTURER Obey
 #define PRODUCT      Obey65 Dongle
 
-/* Receiver has no matrix */
-#define MATRIX_ROWS 0
-#define MATRIX_COLS 0
+/* Receiver has no matrix: use a 1x1 NO_PIN matrix to satisfy QMK */
+#define MATRIX_ROWS 1
+#define MATRIX_COLS 1
+#define MATRIX_ROW_PINS { NO_PIN }
+#define MATRIX_COL_PINS { NO_PIN }
+#define DIODE_DIRECTION COL2ROW
 
 /* Receiver GPIO */
 // USB: PB10/PB11 (built-in)

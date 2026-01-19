@@ -21,8 +21,11 @@ set(BLE_ENABLE OFF CACHE BOOL "KB" FORCE)
 # ESB in receiver/dongle mode (ESB_ENABLE = 2)
 set(ESB_ENABLE 2 CACHE STRING "KB" FORCE)
 set(ESB_ROLE "dongle" CACHE STRING "KB" FORCE)
+# Receiver firmware uses local ESB implementation; wireless lib is optional.
+set(WIRELESS_LIB_OPTIONAL ON CACHE BOOL "KB" FORCE)
 
 # EEPROM for pairing info storage
+set(EEPROM_ENABLE ON CACHE BOOL "KB" FORCE)
 set(EEPROM_DRIVER "custom" CACHE STRING "KB" FORCE)
 
 # Debug UART option
@@ -34,6 +37,7 @@ if(DEBUG_UART_ENABLE)
 endif()
 
 # Add receiver-specific source files
+list(APPEND QMK_PORTING_SOURCES "${CMAKE_CURRENT_LIST_DIR}/wireless_stubs.c")
 list(APPEND QMK_PORTING_SOURCES "${CMAKE_CURRENT_LIST_DIR}/esb_receiver.c")
 list(APPEND QMK_PORTING_SOURCES "${CMAKE_CURRENT_LIST_DIR}/obey65_receiver.c")
 

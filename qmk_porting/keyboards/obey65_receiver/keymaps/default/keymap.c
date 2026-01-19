@@ -8,7 +8,7 @@
 
 #include "quantum.h"
 
-// Empty keymap - receiver has no matrix (MATRIX_ROWS = 0, MATRIX_COLS = 0)
+// Empty keymap - receiver has no matrix (1x1 NO_PIN placeholder)
 const uint16_t PROGMEM keymaps[][1][1] = {
     [0] = {{ KC_NO }}
 };

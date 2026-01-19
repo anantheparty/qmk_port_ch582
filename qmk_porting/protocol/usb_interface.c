@@ -24,6 +24,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "usb_ch58x_usbfs_reg.h"
 #include "keycode_config.h"
 #include "protocol.h"
+#if defined(ESB_ENABLE) && (ESB_ENABLE == 2)
+#include "esb_receiver.h"
+#endif
 #if ESB_ENABLE == 2
 extern void esb_dongle_usb_report_sent(uint8_t interface);
 #endif

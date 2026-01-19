@@ -139,13 +139,22 @@ void bootloader_select_boot_mode()
             PRINT("Protocol select: BLE\n");
             break;
 #endif
-#ifdef ESB_ENABLE
+#if defined(ESB_ENABLE) && (ESB_ENABLE == 1)
         case BOOTLOADER_BOOT_MODE_ESB:
             // 2.4g mode
             kbd_protocol_type = kbd_protocol_esb;
             ch582_set_protocol_interface(&ch582_protocol_esb);
             PRINT("Protocol select: ESB\n");
             break;
+#elif defined(ESB_ENABLE) && (ESB_ENABLE == 2)
+#ifdef USB_ENABLE
+        case BOOTLOADER_BOOT_MODE_ESB:
+            // Dongle uses USB protocol; ESB is handled internally.
+            kbd_protocol_type = kbd_protocol_usb;
+            ch582_set_protocol_interface(&ch582_protocol_usb);
+            PRINT("Protocol select: USB (dongle)\n");
+            break;
+#endif
 #endif
         default:
             PRINT("IAP incomplete, will reboot back to IAP.\n");
@@ -160,7 +169,7 @@ void bootloader_select_boot_mode()
 uint8_t bootloader_set_to_default_mode(const char *reason)
 {
     PRINT("%s, ", reason);
-#if !defined ESB_ENABLE || ESB_ENABLE == 1
+#if !defined ESB_ENABLE || ESB_ENABLE == 1 || ESB_ENABLE == 2
 #ifdef USB_ENABLE
     PRINT("default to USB.\n");
     bootloader_boot_mode_set(BOOTLOADER_BOOT_MODE_USB);
