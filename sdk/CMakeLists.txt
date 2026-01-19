@@ -53,10 +53,16 @@ list(REMOVE_ITEM ch582_sdk_temp
     "${CMAKE_CURRENT_LIST_DIR}/StdPeriphDriver/CH58x_usbdev.c"
 )
 
-if(BUILD_WIRELESS_LIB OR(NOT BLE_ENABLE AND NOT ESB_ENABLE))
+# 启动代码和 HAL 模块始终需要
+# - BUILD_WIRELESS_LIB: 构建无线库时
+# - BUILD_WIRELESS_FROM_SOURCE: 从源码构建无线功能时
+# - 非无线模式 (NOT BLE_ENABLE AND NOT ESB_ENABLE)
+# 注意: LIBCH58xBLE.a 不提供启动代码，所以即使 BLE 启用也需要包含 startup_CH583.S
+if(BUILD_WIRELESS_LIB OR BUILD_WIRELESS_FROM_SOURCE OR (NOT BLE_ENABLE AND NOT ESB_ENABLE))
     list(APPEND ch582_sdk_temp
         "${CMAKE_CURRENT_LIST_DIR}/HAL/MCU.c"
         "${CMAKE_CURRENT_LIST_DIR}/HAL/RTC.c"
+        "${CMAKE_CURRENT_LIST_DIR}/HAL/SLEEP.c"
     )
     target_sources(CH582_APP INTERFACE
         ${ch582_sdk_temp}
