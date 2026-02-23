@@ -25,6 +25,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "wireless_mode.h"
 #include "power_mode.h"
 #include "status_indicator.h"
+#include "bootloader.h"
 
 #ifndef LED_CAPS_LOCK_PIN
 #define LED_CAPS_LOCK_PIN (0x80000000 | GPIO_Pin_17)
@@ -101,34 +102,18 @@ bool led_update_kb(led_t led_state)
 
 void keyboard_post_init_kb(void)
 {
-    // Initialize wireless mode management (Phase 1.2)
+    // Test: init only, no task functions
     wireless_mode_init();
-
-    // Initialize power management (Phase 1.4)
     power_mode_init();
-
-    // Initialize status indicator (Phase 4.3)
     status_indicator_init();
-
-    DEBUG_PRINTF("[KB] Post init complete, wireless: %s, power: %s\r\n",
-                 wireless_mode_name(wireless_mode_get()),
-                 power_mode_name(power_mode_get()));
-
     keyboard_post_init_user();
 }
 
-// Housekeeping task - called periodically from main loop
 void housekeeping_task_kb(void)
 {
-    // Power management task (Phase 1.4)
     power_mode_task();
-
-    // Wireless mode task (Phase 1.2 / Phase 4.1)
     wireless_mode_task();
-
-    // Status indicator task (Phase 4.3)
     status_indicator_task();
-
     housekeeping_task_user();
 }
 
@@ -156,6 +141,17 @@ int main()
     extern void protocol_pre_init();
     extern void protocol_post_init();
     extern void platform_run();
+
+#ifdef POWER_DETECT_PIN
+    // Configure POWER_DETECT_PIN as input-high before bootloader mode selection.
+    // Without hardware, floating pin defaults to HIGH (USB assumed) instead of LOW.
+    // When USB is detected at boot, force USB mode to recover from bad EEPROM state
+    // (e.g. BLE was written because pin was floating LOW on previous BLE firmware boot).
+    gpio_set_pin_input_high(POWER_DETECT_PIN);
+    if (gpio_read_pin(POWER_DETECT_PIN)) {
+        bootloader_boot_mode_set(BOOTLOADER_BOOT_MODE_USB);
+    }
+#endif
 
     platform_setup();
 

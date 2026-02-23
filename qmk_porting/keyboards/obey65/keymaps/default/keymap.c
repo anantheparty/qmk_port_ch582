@@ -22,6 +22,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #endif
 #include <stdbool.h>
 #include "ws2812_tmr2.h"
+#include "wireless_mode.h"
 
 #ifndef RGBLED_NUM
 #define RGBLED_NUM 4
@@ -35,25 +36,38 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define RGB_STEP 2         // RGB调整步长
 #define BRIGHTNESS_STEP 10  // 亮度调整步长
 
-#define BLE0 BLE_SLOT0
-#define BLE1 BLE_SLOT1
-#define BLE2 BLE_SLOT2
-#define BLE3 BLE_SLOT3
-
-// 自定义按键定义（仅保留4灯带控制）
+// 自定义按键定义
+// 注意：QK_KB_11 = USB模式, QK_KB_12~15 = BLE1~4槽, QK_KB_28 = 2.4G
+// 这些值与 wireless_mode.c 中的 process_wireless_keycode() 对应
 enum custom_keycodes {
     KC_BOOTLOADER_JUMP = QK_KB_0,
-    KC_RGB_DEBUG,      // 4灯调试按键
-    KC_LED_TOGGLE,     // 4灯开关
-    KC_RGB_R_MINUS,
-    KC_RGB_R_PLUS,
-    KC_RGB_G_MINUS,
-    KC_RGB_G_PLUS,
-    KC_RGB_B_MINUS,
-    KC_RGB_B_PLUS,
-    KC_BRIGHTNESS_MINUS,
-    KC_BRIGHTNESS_PLUS,
+    KC_RGB_DEBUG,      // QK_KB_1: 4灯调试按键
+    KC_LED_TOGGLE,     // QK_KB_2: 4灯开关
+    KC_RGB_R_MINUS,    // QK_KB_3
+    KC_RGB_R_PLUS,     // QK_KB_4
+    KC_RGB_G_MINUS,    // QK_KB_5
+    KC_RGB_G_PLUS,     // QK_KB_6
+    KC_RGB_B_MINUS,    // QK_KB_7
+    KC_RGB_B_PLUS,     // QK_KB_8
+    KC_BRIGHTNESS_MINUS, // QK_KB_9
+    KC_BRIGHTNESS_PLUS,  // QK_KB_10
+    // QK_KB_11 = USB mode  (handled by process_wireless_keycode)
+    // QK_KB_12 = BLE slot 0 "BLE1"
+    // QK_KB_13 = BLE slot 1 "BLE2"
+    // QK_KB_14 = BLE slot 2 "BLE3"
+    // QK_KB_15 = BLE slot 3 "BLE4"
+    // QK_KB_28 = ESB/2.4G  (handled by process_wireless_keycode)
 };
+
+// 无线模式快捷键 - 在 Layer 1 中使用
+// WL_USB/WL_BLE0/WL_ESB 定义在 wireless_mode.h 中
+// 也可以用 QK_KB_11, QK_KB_12, QK_KB_28 (与 VIA 自定义键对应)
+#define WL_USB_KEY  (QK_KB_0 + 11)   // USB 模式
+#define WL_BLE1_KEY (QK_KB_0 + 12)   // BLE 设备槽 1
+#define WL_BLE2_KEY (QK_KB_0 + 13)   // BLE 设备槽 2
+#define WL_BLE3_KEY (QK_KB_0 + 14)   // BLE 设备槽 3
+#define WL_BLE4_KEY (QK_KB_0 + 15)   // BLE 设备槽 4
+#define WL_ESB_KEY  (QK_KB_0 + 28)   // 2.4G ESB 模式
 
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     [0] = LAYOUT_all(
@@ -64,21 +78,21 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         KC_LCTL, KC_LGUI, KC_LALT, _______,   _______,   KC_SPC,  _______,   _______,   MO(1),   KC_RCTL, _______,   _______,   KC_LEFT, KC_DOWN, KC_RGHT
     ),
     [1] = LAYOUT_all(
-        KC_GRV,  KC_F1,   KC_F2,   KC_F3,   KC_F4,   KC_F5,   KC_F6,   KC_F7,   KC_F8,   KC_F9,   KC_F10,  KC_F11,  KC_F12,  KC_DEL,  KC_BOOTLOADER_JUMP,
-        _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,
-        _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,   _______,
-        _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,   _______,
-        _______, _______, _______, _______, _______,   _______,   _______,   _______,   _______,   _______, _______, _______, _______, _______, _______
+        KC_GRV,     KC_F1,      KC_F2,      KC_F3,      KC_F4,   KC_F5,   KC_F6,   KC_F7,   KC_F8,   KC_F9,   KC_F10,  KC_F11,  KC_F12,  KC_DEL,  KC_BOOTLOADER_JUMP,
+        _______,    WL_USB_KEY, WL_BLE1_KEY,WL_ESB_KEY, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,
+        _______,    WL_BLE2_KEY,WL_BLE3_KEY,WL_BLE4_KEY,_______, _______, _______, _______, _______, _______, _______, _______, _______, _______,   _______,
+        _______,    _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,   _______,
+        _______,    _______, _______, _______, _______,   _______,   _______,   _______,   _______,   _______, _______, _______, _______, _______, _______
     ),
     [2] = LAYOUT_all(
         // Layer 2: 仅4灯带RGB整数控制层
-        KC_LED_TOGGLE  , KC_RGB_R_MINUS, KC_RGB_R_PLUS, KC_RGB_G_MINUS, KC_RGB_G_PLUS,  KC_RGB_B_MINUS, KC_RGB_B_PLUS, KC_BRIGHTNESS_MINUS, KC_BRIGHTNESS_PLUS,   _______,   _______,   _______,   _______,   _______,   MO(2),   
+        KC_LED_TOGGLE  , KC_RGB_R_MINUS, KC_RGB_R_PLUS, KC_RGB_G_MINUS, KC_RGB_G_PLUS,  KC_RGB_B_MINUS, KC_RGB_B_PLUS, KC_BRIGHTNESS_MINUS, KC_BRIGHTNESS_PLUS,   _______,   _______,   _______,   _______,   _______,   MO(2),
         _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,
         _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,
         _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,
         _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______,   _______
     )
-}; 
+};
 
 // 简单的 4灯 RGB 状态：整数RGB(0~10)与亮度(0~100)
 static uint8_t g_r = 4, g_g = 4, g_b = 4, g_brightness = 20; // 默认值
@@ -120,6 +134,11 @@ static void adjust_brightness_and_debug(int8_t adjustment) {
 }
 
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
+    // 优先处理无线模式切换按键（USB/BLE/2.4G）
+    if (process_wireless_keycode(keycode, record->event.pressed)) {
+        return false;
+    }
+
     if (!record->event.pressed) return true;
     switch (keycode) {
         case KC_BOOTLOADER_JUMP: bootloader_jump(); return false;

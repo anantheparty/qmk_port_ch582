@@ -9,10 +9,7 @@
 #include "timer.h"
 #include "debug_uart.h"
 #include "qmk_config.h"
-
-#ifdef RGB_MATRIX_ENABLE
-#include "rgb_matrix.h"
-#endif
+#include "ws2812_tmr2.h"
 
 // Indicator LED indices (from config.h)
 #ifndef BATTERY_INDICATOR_START_INDEX
@@ -239,22 +236,18 @@ static void update_indicator_leds(void) {
     }
 }
 
-// Internal: Set a single indicator LED color
+// Internal: Set a single indicator LED color (TMR2, 4-LED strip)
 static void set_indicator_led(uint8_t index, uint32_t color) {
-#ifdef RGB_MATRIX_ENABLE
     // Extract RGB components from 0x00RRGGBB format
     uint8_t r = (color >> 16) & 0xFF;
     uint8_t g = (color >> 8) & 0xFF;
     uint8_t b = color & 0xFF;
 
-    // Scale by maximum brightness
-    r = (r * RGB_MATRIX_MAXIMUM_BRIGHTNESS) / 255;
-    g = (g * RGB_MATRIX_MAXIMUM_BRIGHTNESS) / 255;
-    b = (b * RGB_MATRIX_MAXIMUM_BRIGHTNESS) / 255;
+    // Scale to indicator brightness (max 50 to avoid overpowering)
+    r = (r * 50) / 255;
+    g = (g * 50) / 255;
+    b = (b * 50) / 255;
 
-    rgb_matrix_set_color(index, r, g, b);
-#else
-    (void)index;
-    (void)color;
-#endif
+    led_obey_t led = { .r = r, .g = g, .b = b };
+    tmr2_ws2812_update_index(index, led);
 }

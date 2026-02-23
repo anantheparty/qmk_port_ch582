@@ -138,6 +138,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 // 2. 后续升级：使用 obey65_upgrade_*.uf2 通过UF2方式
 // 3. 进入bootloader：按住ESC键插入USB，或使用 KC_BOOTLOADER_JUMP 按键
 
+// Disable HAL sleep - pre_handler.h sets HAL_SLEEP=1 when BLE_ENABLE is defined,
+// which would call CH58X_LowPower() in HAL_Init() and block USB enumeration.
+// We manage sleep ourselves via power_mode.c.
+#define HAL_SLEEP 0
+
 #define BATTERY_MEASURE_PIN A4
 #define POWER_DETECT_PIN    B12
 
