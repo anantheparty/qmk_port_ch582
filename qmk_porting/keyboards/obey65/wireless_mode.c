@@ -9,6 +9,7 @@
 #include "timer.h"
 #include "quantum_keycodes.h"  // For QK_KB_0
 #include "status_indicator.h"  // For battery display
+#include "bootloader.h"        // For EEPROM boot mode + mcu_reset()
 
 #ifdef BLE_ENABLE
 #include "protocol_ble.h"
@@ -70,30 +71,30 @@ static void enter_mode(wireless_mode_t mode);
 static void check_usb_auto_switch(void);
 
 void wireless_mode_init(void) {
-    // Default to USB mode
-    wm_state.current_mode = WIRELESS_MODE_USB;
-    wm_state.target_mode = WIRELESS_MODE_USB;
-    wm_state.previous_mode = WIRELESS_MODE_USB;
-    wm_state.status = MODE_STATUS_DISCONNECTED;
+    // Read actual boot mode from EEPROM so the indicator matches the running protocol.
+    wireless_mode_t boot_mode = WIRELESS_MODE_USB;
+    uint8_t eeprom_mode = bootloader_boot_mode_get();
+    if (eeprom_mode == BOOTLOADER_BOOT_MODE_BLE) {
+        boot_mode = WIRELESS_MODE_BLE;
+    } else if (eeprom_mode == BOOTLOADER_BOOT_MODE_ESB) {
+        boot_mode = WIRELESS_MODE_ESB;
+    }
+
+    wm_state.current_mode = boot_mode;
+    wm_state.target_mode = boot_mode;
+    wm_state.previous_mode = boot_mode;
+    wm_state.status = MODE_STATUS_CONNECTING;
     wm_state.ble_slot = BLE_SLOT_0;
     wm_state.mode_change_pending = false;
     wm_state.callback = NULL;
 
-    // Initialize USB auto-detection state
-    wm_state.usb_auto_enabled = true;
-    wm_state.usb_was_connected = obey65_battery_is_usb_connected();
+    // No POWER_DETECT_PIN: disable USB auto-switch to avoid spurious mode changes.
+    wm_state.usb_auto_enabled = false;
+    wm_state.usb_was_connected = false;
     wm_state.usb_detect_timestamp = timer_read32();
 
-    DEBUG_PRINTF("[MODE] Init: %s, USB auto: %s, USB: %s\r\n",
-                 wireless_mode_name(wm_state.current_mode),
-                 wm_state.usb_auto_enabled ? "ON" : "OFF",
-                 wm_state.usb_was_connected ? "connected" : "disconnected");
-
-    // TODO: Load saved mode from EEPROM
-    // wireless_mode_t saved = eeprom_read_wireless_mode();
-    // if (wireless_mode_available(saved)) {
-    //     wireless_mode_switch(saved);
-    // }
+    DEBUG_PRINTF("[MODE] Init: %s (EEPROM=0x%02X)\r\n",
+                 wireless_mode_name(boot_mode), eeprom_mode);
 }
 
 wireless_mode_t wireless_mode_get(void) {
@@ -273,27 +274,29 @@ static void exit_current_mode(void) {
 }
 
 static void enter_mode(wireless_mode_t mode) {
+    // BLE/ESB protocol stacks are only initialized when the MCU boots in that
+    // mode (via platform_initialize). A runtime switch requires writing the
+    // desired mode to EEPROM and rebooting so the correct stack initializes.
     switch (mode) {
         case WIRELESS_MODE_USB:
-            // USB is always initialized, just enable it
-            // TODO: usb_enable();
+            DEBUG_PRINTF("[MODE] -> USB, rebooting\r\n");
+            bootloader_boot_mode_set(BOOTLOADER_BOOT_MODE_USB);
+            mcu_reset();
             break;
 
         case WIRELESS_MODE_BLE:
 #ifdef BLE_ENABLE
-            // BLE is initialized at startup, just switch to the slot and advertise
-            ble_switch_slot(wm_state.ble_slot);
+            DEBUG_PRINTF("[MODE] -> BLE slot %d, rebooting\r\n", wm_state.ble_slot);
+            bootloader_boot_mode_set(BOOTLOADER_BOOT_MODE_BLE);
+            mcu_reset();
 #endif
             break;
 
         case WIRELESS_MODE_ESB:
 #ifdef ESB_ENABLE
-            // Reconnect to saved receiver or start pairing
-            if (esb_has_pairing()) {
-                esb_reconnect();
-            } else {
-                esb_start_pairing();
-            }
+            DEBUG_PRINTF("[MODE] -> ESB, rebooting\r\n");
+            bootloader_boot_mode_set(BOOTLOADER_BOOT_MODE_ESB);
+            mcu_reset();
 #endif
             break;
 

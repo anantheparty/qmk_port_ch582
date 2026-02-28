@@ -144,7 +144,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define HAL_SLEEP 0
 
 #define BATTERY_MEASURE_PIN A4
-#define POWER_DETECT_PIN    B12
+// POWER_DETECT_PIN not present on Obey65 hardware
+// #define POWER_DETECT_PIN    B12
 
 #define BATTERY_INDICATOR_START_INDEX 3
 #define BATTERY_INDICATOR_END_INDEX   0

@@ -1,11 +1,15 @@
 /**
- * BLE HID 协议实现
+ * BLE Protocol - MINIMAL DIAGNOSTIC VERSION
  *
- * 实现 Obey65 键盘的蓝牙 HID 功能：
- * - GAP Peripheral 角色配置
- * - HID over GATT 服务
- * - 键盘/鼠标报告发送
- * - 连接状态管理
+ * Absolute minimum to test if BLE advertising works at all.
+ * No GATT services, no bonding, no QMK task.
+ *
+ * LED feedback (TMR2 4-LED strip):
+ *   All RED       = init complete, waiting for TMOS start
+ *   1 GREEN       = GAPROLE_STARTED  (BLE stack initialized)
+ *   2 GREEN       = GAPROLE_ADVERTISING (RF is transmitting!)
+ *   3 GREEN       = GAPROLE_CONNECTED
+ *   All RED blink = GAPROLE_ERROR
  */
 
 #include "protocol_ble.h"
@@ -13,137 +17,130 @@
 #include "config.h"
 #include "hid_dev.h"
 #include "ble_compat.h"
-#include "ble_bonding.h"
 #include "report.h"
+#include "ws2812_tmr2.h"
 
 #ifdef DEBUG_UART_ENABLE
 #include "debug_uart.h"
 #endif
 
 // ============================================================================
-// BLE 状态管理
+// LED helpers
 // ============================================================================
 
-// Task ID for BLE
-static uint8_t bleTaskId = INVALID_TASK_ID;
+static const led_obey_t LED_RED   = {.r = 40, .g = 0,  .b = 0};
+static const led_obey_t LED_GREEN = {.r = 0,  .g = 40, .b = 0};
+static const led_obey_t LED_BLUE  = {.r = 0,  .g = 0,  .b = 40};
+static const led_obey_t LED_OFF   = {.r = 0,  .g = 0,  .b = 0};
 
-// 当前连接句柄 (0xFFFF 表示未连接)
+static void set_leds(uint8_t n_green, bool all_red) {
+    // DIAGNOSTIC: WS2812 disabled. Use A11 blink count to signal state:
+    //   all_red (error)  → fast blink
+    //   n_green=1        → A11 LOW  (off)
+    //   n_green=2        → A11 HIGH (on) = advertising
+    //   n_green=3        → A11 HIGH (on) = connected
+    if (all_red) {
+        // blink 3 times fast to signal error
+        for (int i = 0; i < 3; i++) {
+            GPIOA_SetBits(GPIO_Pin_11);
+            DelayMs(100);
+            GPIOA_ResetBits(GPIO_Pin_11);
+            DelayMs(100);
+        }
+    } else if (n_green >= 2) {
+        GPIOA_SetBits(GPIO_Pin_11);  // on = advertising/connected
+    } else {
+        GPIOA_ResetBits(GPIO_Pin_11);  // off = idle
+    }
+}
+
+// ============================================================================
+// State
+// ============================================================================
+
+static uint8_t bleTaskId   = INVALID_TASK_ID;
 static uint16_t bleConnHandle = GAP_CONNHANDLE_INIT;
 
-// BLE 连接状态
 typedef enum {
-    BLE_STATE_IDLE = 0,      // 空闲
-    BLE_STATE_ADVERTISING,   // 广播中
-    BLE_STATE_CONNECTED,     // 已连接
-    BLE_STATE_BONDED         // 已绑定
+    BLE_STATE_IDLE = 0,
+    BLE_STATE_ADVERTISING,
+    BLE_STATE_CONNECTED,
 } ble_state_t;
 
 static ble_state_t bleState = BLE_STATE_IDLE;
 
 // ============================================================================
-// 广播和扫描响应数据
+// Advertising data  (minimal: flags + name)
 // ============================================================================
 
-// GAP - SCAN RSP data (max size = 31 bytes)
-static uint8_t scanRspData[] = {
-    // complete name
-    0x07,   // length of this data
-    GAP_ADTYPE_LOCAL_NAME_COMPLETE,
-    'O', 'b', 'e', 'y', '6', '5',
-
-    // connection interval range
-    0x05,   // length of this data
-    GAP_ADTYPE_SLAVE_CONN_INTERVAL_RANGE,
-    LO_UINT16(6),    // min: 7.5ms (6 * 1.25ms)
-    HI_UINT16(6),
-    LO_UINT16(12),   // max: 15ms (12 * 1.25ms) - 低延迟键盘
-    HI_UINT16(12),
-
-    // Tx power level
-    0x02,   // length of this data
-    GAP_ADTYPE_POWER_LEVEL,
-    0       // 0dBm
-};
-
-// GAP - Advertisement data (max size = 31 bytes)
 static uint8_t advertData[] = {
-    // Flags - 使用 GENERAL 模式以便无限期广播
-    0x02,   // length of this data
-    GAP_ADTYPE_FLAGS,
+    0x02, GAP_ADTYPE_FLAGS,
     GAP_ADTYPE_FLAGS_GENERAL | GAP_ADTYPE_FLAGS_BREDR_NOT_SUPPORTED,
 
-    // Appearance - Keyboard
-    0x03,   // length of this data
-    GAP_ADTYPE_APPEARANCE,
+    0x07, GAP_ADTYPE_LOCAL_NAME_COMPLETE,
+    'O', 'b', 'e', 'y', '6', '5',
+
+    0x03, GAP_ADTYPE_APPEARANCE,
     LO_UINT16(GAP_APPEARE_HID_KEYBOARD),
     HI_UINT16(GAP_APPEARE_HID_KEYBOARD),
 
-    // Service UUIDs - HID
-    0x03,   // length of this data
-    GAP_ADTYPE_16BIT_MORE,
-    LO_UINT16(HID_SERV_UUID),
-    HI_UINT16(HID_SERV_UUID),
+    // Distinctive marker: company 0xFFFF + magic bytes 0xCA 0xFE 0xBE 0xEF
+    0x06, GAP_ADTYPE_MANUFACTURER_SPECIFIC,
+    0xFF, 0xFF,
+    0xCA, 0xFE, 0xBE,
+};
+
+static uint8_t scanRspData[] = {
+    // Local name in scan response too (belt-and-suspenders)
+    0x07, GAP_ADTYPE_LOCAL_NAME_COMPLETE,
+    'O', 'b', 'e', 'y', '6', '5',
+
+    0x05, GAP_ADTYPE_SLAVE_CONN_INTERVAL_RANGE,
+    LO_UINT16(8), HI_UINT16(8),
+    LO_UINT16(8), HI_UINT16(8),
 };
 
 // ============================================================================
-// GAP 回调函数
+// GAP callbacks
 // ============================================================================
 
-/**
- * GAP Role 状态变化回调
- */
 static void ble_StateNotificationCB(gapRole_States_t newState, gapRoleEvent_t *pEvent) {
     switch (newState & GAPROLE_STATE_ADV_MASK) {
-        case GAPROLE_STARTED:
-#ifdef DEBUG_UART_ENABLE
-            DEBUG_PRINT("BLE: Started\n");
-#endif
+        case GAPROLE_STARTED: {
+            // Do NOT call GAP_ConfigDeviceAddr - use the default public BD_ADDR
+            // set by CH58X_BLEInit() via GetMACAddress(). Any call here may break RF.
             bleState = BLE_STATE_IDLE;
-            break;
+            set_leds(1, false);  // 1 green = STARTED
+        } break;
 
         case GAPROLE_ADVERTISING:
-#ifdef DEBUG_UART_ENABLE
-            DEBUG_PRINT("BLE: Advertising\n");
-#endif
             bleState = BLE_STATE_ADVERTISING;
+            set_leds(2, false);  // 2 green = ADVERTISING (RF is on!)
             break;
 
         case GAPROLE_CONNECTED:
             if (pEvent->gap.opcode == GAP_LINK_ESTABLISHED_EVENT) {
                 bleConnHandle = pEvent->linkCmpl.connectionHandle;
                 HidDev_SetConnHandle(bleConnHandle);
-#ifdef DEBUG_UART_ENABLE
-                DEBUG_PRINTF("BLE: Connected, handle=%d\n", bleConnHandle);
-#endif
                 bleState = BLE_STATE_CONNECTED;
+                set_leds(3, false);  // 3 green = CONNECTED
             }
-            break;
-
-        case GAPROLE_CONNECTED_ADV:
-#ifdef DEBUG_UART_ENABLE
-            DEBUG_PRINT("BLE: Connected + Advertising\n");
-#endif
             break;
 
         case GAPROLE_WAITING:
-            if (pEvent->gap.opcode == GAP_LINK_TERMINATED_EVENT) {
-#ifdef DEBUG_UART_ENABLE
-                DEBUG_PRINTF("BLE: Disconnected, reason=%d\n", pEvent->linkTerminate.reason);
-#endif
-                bleConnHandle = GAP_CONNHANDLE_INIT;
-                HidDev_SetConnHandle(GAP_CONNHANDLE_INIT);
-                bleState = BLE_STATE_IDLE;
-
-                // 断开后重新开始广播
-                uint8_t adv_enable = TRUE;
-                GAPRole_SetParameter(GAPROLE_ADVERT_ENABLED, sizeof(uint8_t), &adv_enable);
+            // Called on: disconnect, directed-adv timeout, or adv timeout.
+            // WCH example re-enables advertising unconditionally here.
+            bleConnHandle = GAP_CONNHANDLE_INIT;
+            bleState = BLE_STATE_IDLE;
+            {
+                uint8_t adv = TRUE;
+                GAPRole_SetParameter(GAPROLE_ADVERT_ENABLED, sizeof(uint8_t), &adv);
             }
+            set_leds(1, false);
             break;
 
         case GAPROLE_ERROR:
-#ifdef DEBUG_UART_ENABLE
-            DEBUG_PRINT("BLE: Error\n");
-#endif
+            set_leds(0, true);  // all red = ERROR
             break;
 
         default:
@@ -151,165 +148,135 @@ static void ble_StateNotificationCB(gapRole_States_t newState, gapRoleEvent_t *p
     }
 }
 
-// GAP Role Callbacks
 static gapRolesCBs_t ble_PeripheralCBs = {
-    ble_StateNotificationCB,  // Profile State Change Callbacks
-    NULL,                     // RSSI callback
-    NULL                      // Parameter update callback
+    ble_StateNotificationCB,
+    NULL,
+    NULL
 };
 
-/**
- * 配对状态回调
- */
+static void ble_PasscodeCB(uint8_t *deviceAddr, uint16_t connHandle,
+                           uint8_t uiInputs, uint8_t uiOutputs) {
+    GAPBondMgr_PasscodeRsp(connHandle, SUCCESS, 0);
+}
+
 static void ble_PairStateCB(uint16_t connHandle, uint8_t state, uint8_t status) {
-    if (state == GAPBOND_PAIRING_STATE_COMPLETE) {
-        if (status == SUCCESS) {
-#ifdef DEBUG_UART_ENABLE
-            DEBUG_PRINT("BLE: Pairing complete\n");
-#endif
-            bleState = BLE_STATE_BONDED;
-        } else {
-#ifdef DEBUG_UART_ENABLE
-            DEBUG_PRINTF("BLE: Pairing failed, status=%d\n", status);
-#endif
-        }
-    } else if (state == GAPBOND_PAIRING_STATE_BONDED) {
-#ifdef DEBUG_UART_ENABLE
-        DEBUG_PRINT("BLE: Bonded\n");
-#endif
-        bleState = BLE_STATE_BONDED;
-    } else if (state == GAPBOND_PAIRING_STATE_BOND_SAVED) {
-#ifdef DEBUG_UART_ENABLE
-        DEBUG_PRINT("BLE: Bond saved to NV\n");
-#endif
-        // Notify bonding manager that pairing is complete
-        // Note: We don't have access to peer address here in this callback
-        // The address would need to be obtained from linkDB
-        ble_bonding_on_pair_complete(NULL, 0);
-    }
 }
 
-/**
- * 密码回调
- */
-static void ble_PasscodeCB(uint8_t *deviceAddr, uint16_t connHandle, uint8_t uiInputs, uint8_t uiOutputs) {
-    // 自动接受配对（使用默认密码 000000）
-    uint32_t passcode = 0;
-    GAPBondMgr_PasscodeRsp(connHandle, SUCCESS, passcode);
-#ifdef DEBUG_UART_ENABLE
-    DEBUG_PRINT("BLE: Passcode request, auto-accept\n");
-#endif
-}
-
-// Bond Manager Callbacks
 static gapBondCBs_t ble_BondMgrCBs = {
-    ble_PasscodeCB,    // Passcode callback
-    ble_PairStateCB    // Pairing / Bonding state Callback
+    ble_PasscodeCB,
+    ble_PairStateCB
 };
 
 // ============================================================================
-// BLE 任务处理
+// Task events
 // ============================================================================
 
-static uint16_t BLE_Task_ProcessEvent(uint8_t task_id, uint16_t events);
+#define BLE_START_DEVICE_EVT  0x0001
+#define BLE_RUN_QMK_TASK_EVT  0x0002
 
-// ============================================================================
-// 协议接口实现
-// ============================================================================
-
-static void platform_initialize(void) {
-#ifdef DEBUG_UART_ENABLE
-    DEBUG_PRINT("BLE: Initializing...\n");
-#endif
-
-    // Register TMOS task
-    bleTaskId = TMOS_ProcessEventRegister(BLE_Task_ProcessEvent);
-
-    // Initialize bonding management
-    ble_bonding_init();
-
-    // Setup GAP Peripheral Role Profile
-    {
-        uint8_t  initial_advertising_enable = TRUE;
-        uint16_t desired_min_interval = 6;   // 7.5ms (低延迟)
-        uint16_t desired_max_interval = 12;  // 15ms
-
-        // Set the GAP Role Parameters
-        GAPRole_SetParameter(GAPROLE_ADVERT_ENABLED, sizeof(uint8_t), &initial_advertising_enable);
-        GAPRole_SetParameter(GAPROLE_SCAN_RSP_DATA, sizeof(scanRspData), scanRspData);
-        GAPRole_SetParameter(GAPROLE_ADVERT_DATA, sizeof(advertData), advertData);
-        GAPRole_SetParameter(GAPROLE_MIN_CONN_INTERVAL, sizeof(uint16_t), &desired_min_interval);
-        GAPRole_SetParameter(GAPROLE_MAX_CONN_INTERVAL, sizeof(uint16_t), &desired_max_interval);
-    }
-
-    // Set the GAP Characteristics
-    GGS_SetParameter(GGS_DEVICE_NAME_ATT, sizeof("Obey65"), "Obey65");
-
-    // Setup the GAP Bond Manager
-    {
-        uint32_t passkey = 0; // passkey "000000"
-        uint8_t  pairMode = GAPBOND_PAIRING_MODE_WAIT_FOR_REQ;
-        uint8_t  mitm = FALSE;  // 不需要 MITM 保护（简化配对）
-        uint8_t  ioCap = GAPBOND_IO_CAP_NO_INPUT_NO_OUTPUT;
-        uint8_t  bonding = TRUE;
-
-        GAPBondMgr_SetParameter(GAPBOND_PERI_DEFAULT_PASSCODE, sizeof(uint32_t), &passkey);
-        GAPBondMgr_SetParameter(GAPBOND_PERI_PAIRING_MODE, sizeof(uint8_t), &pairMode);
-        GAPBondMgr_SetParameter(GAPBOND_PERI_MITM_PROTECTION, sizeof(uint8_t), &mitm);
-        GAPBondMgr_SetParameter(GAPBOND_PERI_IO_CAPABILITIES, sizeof(uint8_t), &ioCap);
-        GAPBondMgr_SetParameter(GAPBOND_PERI_BONDING_ENABLED, sizeof(uint8_t), &bonding);
-    }
-
-    // Initialize GATT attributes
-    GGS_AddService(GATT_ALL_SERVICES);         // GAP Service
-    GATTServApp_AddService(GATT_ALL_SERVICES); // GATT attributes
-    HidDev_AddService();                       // HID Service
-
-    // Start the Device
-    GAPRole_PeripheralStartDevice(bleTaskId, &ble_BondMgrCBs, &ble_PeripheralCBs);
-
-#ifdef DEBUG_UART_ENABLE
-    DEBUG_PRINTF("BLE: Initialized, taskId=%d\n", bleTaskId);
-#endif
-}
+static void protocol_pre_task(void);
+static void protocol_post_task(void);
+extern void protocol_keyboard_task(void);
+extern void housekeeping_task(void);
 
 static uint16_t BLE_Task_ProcessEvent(uint8_t task_id, uint16_t events) {
     if (events & SYS_EVENT_MSG) {
         uint8_t *pMsg;
-
         if ((pMsg = tmos_msg_receive(bleTaskId)) != NULL) {
-            // 处理 BLE 消息
-            // TODO: 根据消息类型进行处理
-
-            // Release the TMOS message
             tmos_msg_deallocate(pMsg);
         }
-
         return (events ^ SYS_EVENT_MSG);
+    }
+
+    // Deferred start - called from inside TMOS loop (WCH example pattern)
+    if (events & BLE_START_DEVICE_EVT) {
+        GAPRole_PeripheralStartDevice(bleTaskId, &ble_BondMgrCBs, &ble_PeripheralCBs);
+        return (events ^ BLE_START_DEVICE_EVT);
+    }
+
+    // DIAGNOSTIC: QMK task DISABLED - test if QMK interferes with BLE RF
+    // If keyboard appears in scan, QMK task is the culprit
+    if (events & BLE_RUN_QMK_TASK_EVT) {
+        // Show actual BLE state on LEDs (no QMK task, no blink)
+        switch (bleState) {
+            case BLE_STATE_IDLE:        set_leds(1, false); break;
+            case BLE_STATE_ADVERTISING: set_leds(2, false); break;
+            case BLE_STATE_CONNECTED:   set_leds(3, false); break;
+        }
+        tmos_start_task(task_id, BLE_RUN_QMK_TASK_EVT, MS1_TO_SYSTEM_TIME(50));
+        return (events ^ BLE_RUN_QMK_TASK_EVT);
     }
 
     return 0;
 }
 
-static void protocol_setup(void) {
-    // BLE protocol setup
-}
+// ============================================================================
+// Platform interface
+// ============================================================================
 
-static void protocol_init(void) {
-    // Init BLE hardware
+static void platform_initialize(void) {
+    // DIAGNOSTIC: skip TMR2/WS2812 init - test if TMR2 DMA interferes with BLE RF
+    // tmr2_ws2812_init();
+    //
+    // Instead, use raw GPIO blink on A11 as state indicator (1=init, 2=advertising)
+    GPIOA_ModeCfg(GPIO_Pin_11, GPIO_ModeOut_PP_5mA);
+    GPIOA_ResetBits(GPIO_Pin_11);  // off during init
+
+    // (No blue LED phase - can't without WS2812)
+
+    // 1. GAPRole init (must be first)
     GAPRole_PeripheralInit();
+
+    // 2. Register TMOS task
+    bleTaskId = TMOS_ProcessEventRegister(BLE_Task_ProcessEvent);
+
+    // 3. Set advertising intervals (match WCH official HID_Keyboard example exactly)
+    GAP_SetParamValue(TGAP_DISC_ADV_INT_MIN, 48);  // 30ms
+    GAP_SetParamValue(TGAP_DISC_ADV_INT_MAX, 80);  // 50ms
+    GAP_SetParamValue(TGAP_LIM_ADV_TIMEOUT,  60);  // 60s (safety: also set for general mode)
+
+    // 4. GAP role parameters
+    {
+        uint8_t  adv_on = TRUE;
+        uint16_t conn_min = 8, conn_max = 8;
+        GAPRole_SetParameter(GAPROLE_ADVERT_ENABLED,    sizeof(uint8_t),  &adv_on);
+        GAPRole_SetParameter(GAPROLE_ADVERT_DATA,       sizeof(advertData), advertData);
+        GAPRole_SetParameter(GAPROLE_SCAN_RSP_DATA,     sizeof(scanRspData), scanRspData);
+        GAPRole_SetParameter(GAPROLE_MIN_CONN_INTERVAL, sizeof(uint16_t), &conn_min);
+        GAPRole_SetParameter(GAPROLE_MAX_CONN_INTERVAL, sizeof(uint16_t), &conn_max);
+    }
+
+    // 5. Device name
+    GGS_SetParameter(GGS_DEVICE_NAME_ATT, GAP_DEVICE_NAME_LEN, "Obey65");
+
+    // 6. Bond manager - DISABLED for minimal diagnostic
+    // (GAPBondMgr not needed just to test if advertising works)
+
+    // 7. GATT services - DISABLED for minimal diagnostic
+    // If advertising works without GATT, the GATT table is the problem
+    GGS_AddService(GATT_ALL_SERVICES);
+    GATTServApp_AddService(GATT_ALL_SERVICES);
+    // HidDev_AddService();  // <-- DISABLED: test if HID GATT is blocking RF
+
+    // 8. Show all-red = init done, waiting for TMOS to start BLE
+    set_leds(0, true);
+
+    // 9. Deferred start (WCH pattern: GAPRole_PeripheralStartDevice from TMOS event)
+    tmos_set_event(bleTaskId, BLE_START_DEVICE_EVT);
+
+    // 10. QMK task
+    tmos_start_task(bleTaskId, BLE_RUN_QMK_TASK_EVT, MS1_TO_SYSTEM_TIME(10));
 }
 
-static void protocol_pre_task(void) {
-    // BLE pre-task
-}
+static void protocol_setup(void) {}
 
-static void protocol_post_task(void) {
-    // BLE post-task
-}
+static void protocol_init(void) {}
+
+static void protocol_pre_task(void) {}
+
+static void protocol_post_task(void) {}
 
 static void platform_run(void) {
-    // BLE main loop step
     TMOS_SystemProcess();
 }
 
@@ -318,44 +285,30 @@ static void platform_reboot(void) {
 }
 
 // ============================================================================
-// HID 报告发送
+// HID report sending
 // ============================================================================
 
 static void send_keyboard(report_keyboard_t *report) {
-    if (bleState < BLE_STATE_CONNECTED || bleConnHandle == GAP_CONNHANDLE_INIT) {
-        return;  // 未连接时不发送
-    }
-
+    if (bleState != BLE_STATE_CONNECTED || bleConnHandle == GAP_CONNHANDLE_INIT) return;
     HidDev_Report(HID_RPT_ID_KEYBOARD_IN, HID_REPORT_TYPE_INPUT, 8, (uint8_t *)report);
 }
 
-static void send_nkro(report_nkro_t *report) {
-    // TODO: 实现 NKRO 报告发送
-    // BLE HID 通常不支持完整的 NKRO，可能需要拆分为多个报告
-}
+static void send_nkro(report_nkro_t *report) {}
 
 static void send_mouse(report_mouse_t *report) {
 #ifdef MOUSE_ENABLE
-    if (bleState < BLE_STATE_CONNECTED || bleConnHandle == GAP_CONNHANDLE_INIT) {
-        return;
-    }
-
+    if (bleState != BLE_STATE_CONNECTED || bleConnHandle == GAP_CONNHANDLE_INIT) return;
     HidDev_Report(HID_RPT_ID_MOUSE_IN, HID_REPORT_TYPE_INPUT, 5, (uint8_t *)report);
 #endif
 }
 
 static void send_extra(report_extra_t *report) {
-    if (bleState < BLE_STATE_CONNECTED || bleConnHandle == GAP_CONNHANDLE_INIT) {
-        return;
-    }
-
+    if (bleState != BLE_STATE_CONNECTED || bleConnHandle == GAP_CONNHANDLE_INIT) return;
     if (report->report_id == REPORT_ID_CONSUMER) {
-        // Consumer Control report (2 bytes)
         HidDev_Report(HID_RPT_ID_CONSUMER_IN, HID_REPORT_TYPE_INPUT, 2, (uint8_t *)&report->usage);
     } else if (report->report_id == REPORT_ID_SYSTEM) {
-        // System Control report (1 byte)
-        uint8_t system_data = report->usage & 0xFF;
-        HidDev_Report(HID_RPT_ID_SYSTEM_IN, HID_REPORT_TYPE_INPUT, 1, &system_data);
+        uint8_t d = report->usage & 0xFF;
+        HidDev_Report(HID_RPT_ID_SYSTEM_IN, HID_REPORT_TYPE_INPUT, 1, &d);
     }
 }
 
@@ -364,199 +317,59 @@ static uint8_t ble_keyboard_leds(void) {
 }
 
 // ============================================================================
-// 协议接口定义
+// Protocol interface
 // ============================================================================
 
 const ch582_interface_t ch582_protocol_ble = {
     .ch582_common_driver.keyboard_leds = ble_keyboard_leds,
     .ch582_common_driver.send_keyboard = send_keyboard,
-    .ch582_common_driver.send_nkro = send_nkro,
-    .ch582_common_driver.send_mouse = send_mouse,
-    .ch582_common_driver.send_extra = send_extra,
-    .ch582_platform_initialize = platform_initialize,
-    .ch582_protocol_setup = protocol_setup,
-    .ch582_protocol_init = protocol_init,
-    .ch582_protocol_pre_task = protocol_pre_task,
-    .ch582_protocol_post_task = protocol_post_task,
-    .ch582_platform_run = platform_run,
-    .ch582_platform_reboot = platform_reboot,
+    .ch582_common_driver.send_nkro     = send_nkro,
+    .ch582_common_driver.send_mouse    = send_mouse,
+    .ch582_common_driver.send_extra    = send_extra,
+    .ch582_platform_initialize  = platform_initialize,
+    .ch582_protocol_setup       = protocol_setup,
+    .ch582_protocol_init        = protocol_init,
+    .ch582_protocol_pre_task    = protocol_pre_task,
+    .ch582_protocol_post_task   = protocol_post_task,
+    .ch582_platform_run         = platform_run,
+    .ch582_platform_reboot      = platform_reboot,
 };
 
 // ============================================================================
-// 公共 API
+// Public API
 // ============================================================================
 
-/**
- * 获取当前 BLE 连接状态
- */
 bool ble_is_connected(void) {
-    return bleState >= BLE_STATE_CONNECTED;
+    return bleState == BLE_STATE_CONNECTED;
 }
 
-/**
- * 开始广播
- */
 void ble_start_advertising(void) {
-    uint8_t adv_enable = TRUE;
-    GAPRole_SetParameter(GAPROLE_ADVERT_ENABLED, sizeof(uint8_t), &adv_enable);
+    uint8_t adv = TRUE;
+    GAPRole_SetParameter(GAPROLE_ADVERT_ENABLED, sizeof(uint8_t), &adv);
 }
 
-/**
- * 停止广播
- */
 void ble_stop_advertising(void) {
-    uint8_t adv_enable = FALSE;
-    GAPRole_SetParameter(GAPROLE_ADVERT_ENABLED, sizeof(uint8_t), &adv_enable);
+    uint8_t adv = FALSE;
+    GAPRole_SetParameter(GAPROLE_ADVERT_ENABLED, sizeof(uint8_t), &adv);
 }
 
-/**
- * 断开当前连接
- */
 void ble_disconnect(void) {
     if (bleConnHandle != GAP_CONNHANDLE_INIT) {
         GAPRole_TerminateLink(bleConnHandle);
     }
 }
 
-/**
- * 切换到指定的配对槽位
- */
 bool ble_switch_slot(uint8_t slot) {
-    if (slot >= BLE_MAX_BONDS) {
-        return false;
-    }
-
-    // If connected, disconnect first
-    if (bleConnHandle != GAP_CONNHANDLE_INIT) {
-        GAPRole_TerminateLink(bleConnHandle);
-    }
-
-    // Set new active slot
-    ble_bonding_set_active_slot(slot);
-
-    // Restart advertising
+    ble_disconnect();
     ble_start_advertising();
-
-#ifdef DEBUG_UART_ENABLE
-    DEBUG_PRINTF("BLE: Switched to slot %d\n", slot);
-#endif
-
     return true;
 }
 
-/**
- * 获取当前配对槽位
- */
-uint8_t ble_get_current_slot(void) {
-    return ble_bonding_get_active_slot();
-}
+uint8_t ble_get_current_slot(void)    { return 0; }
+void    ble_clear_all_bonds(void)     { GAPBondMgr_SetParameter(GAPBOND_ERASE_ALLBONDS, 0, NULL); }
+uint8_t ble_get_bond_count(void)      { return 0; }
 
-/**
- * 清除所有配对信息
- */
-void ble_clear_all_bonds(void) {
-    // Disconnect if connected
-    if (bleConnHandle != GAP_CONNHANDLE_INIT) {
-        GAPRole_TerminateLink(bleConnHandle);
-    }
-
-    // Clear all bonding data
-    ble_bonding_clear_all();
-
-#ifdef DEBUG_UART_ENABLE
-    DEBUG_PRINT("BLE: Cleared all bonds\n");
-#endif
-}
-
-/**
- * 获取已配对设备数量
- */
-uint8_t ble_get_bond_count(void) {
-    return ble_bonding_get_count();
-}
-
-// ============================================================================
-// BLE 功耗优化
-// ============================================================================
-
-// Connection parameter definitions
-// Low latency mode: 7.5ms-15ms (for typing)
-#define BLE_CONN_INTERVAL_MIN_LOW_LATENCY   6   // 7.5ms (6 * 1.25ms)
-#define BLE_CONN_INTERVAL_MAX_LOW_LATENCY   12  // 15ms
-
-// Power saving mode: 30ms-50ms (for idle)
-#define BLE_CONN_INTERVAL_MIN_POWER_SAVE    24  // 30ms
-#define BLE_CONN_INTERVAL_MAX_POWER_SAVE    40  // 50ms
-
-// Current BLE power mode
-static ble_power_mode_t currentBlePowerMode = BLE_POWER_LOW_LATENCY;
-
-/**
- * 设置 BLE 功耗模式
- * @param mode BLE_POWER_LOW_LATENCY (打字时) 或 BLE_POWER_SAVE (空闲时)
- */
-void ble_set_power_mode(ble_power_mode_t mode) {
-    if (mode == currentBlePowerMode) {
-        return;  // No change needed
-    }
-
-    currentBlePowerMode = mode;
-
-    if (bleConnHandle == GAP_CONNHANDLE_INIT) {
-        return;  // Not connected, will apply when connected
-    }
-
-    // Request connection parameter update
-    uint16_t minInterval, maxInterval;
-    uint16_t latency = 0;
-    uint16_t timeout = 500;  // 5 seconds supervision timeout
-
-    if (mode == BLE_POWER_LOW_LATENCY) {
-        minInterval = BLE_CONN_INTERVAL_MIN_LOW_LATENCY;
-        maxInterval = BLE_CONN_INTERVAL_MAX_LOW_LATENCY;
-        latency = 0;  // No slave latency for low latency
-    } else {
-        minInterval = BLE_CONN_INTERVAL_MIN_POWER_SAVE;
-        maxInterval = BLE_CONN_INTERVAL_MAX_POWER_SAVE;
-        latency = 4;  // Allow skipping up to 4 connection events
-    }
-
-    // Update connection parameters
-    GAPRole_SetParameter(GAPROLE_MIN_CONN_INTERVAL, sizeof(uint16_t), &minInterval);
-    GAPRole_SetParameter(GAPROLE_MAX_CONN_INTERVAL, sizeof(uint16_t), &maxInterval);
-
-    // Request the central to update parameters
-    // Note: This is a request, the central may reject it
-    GAPRole_PeripheralConnParamUpdateReq(bleConnHandle, minInterval, maxInterval, latency, timeout, bleTaskId);
-
-#ifdef DEBUG_UART_ENABLE
-    DEBUG_PRINTF("BLE: Power mode -> %s (interval: %d-%d)\n",
-                 mode == BLE_POWER_LOW_LATENCY ? "Low Latency" : "Power Save",
-                 minInterval, maxInterval);
-#endif
-}
-
-/**
- * 获取当前 BLE 功耗模式
- */
-ble_power_mode_t ble_get_power_mode(void) {
-    return currentBlePowerMode;
-}
-
-/**
- * 通知 BLE 有按键活动 - 切换到低延迟模式
- */
-void ble_on_key_activity(void) {
-    if (bleState >= BLE_STATE_CONNECTED && currentBlePowerMode != BLE_POWER_LOW_LATENCY) {
-        ble_set_power_mode(BLE_POWER_LOW_LATENCY);
-    }
-}
-
-/**
- * 通知 BLE 进入空闲状态 - 切换到省电模式
- */
-void ble_on_idle(void) {
-    if (bleState >= BLE_STATE_CONNECTED && currentBlePowerMode != BLE_POWER_SAVE) {
-        ble_set_power_mode(BLE_POWER_SAVE);
-    }
-}
+void ble_set_power_mode(ble_power_mode_t mode) {}
+ble_power_mode_t ble_get_power_mode(void) { return BLE_POWER_LOW_LATENCY; }
+void ble_on_key_activity(void) {}
+void ble_on_idle(void) {}

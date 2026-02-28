@@ -142,16 +142,16 @@ int main()
     extern void protocol_post_init();
     extern void platform_run();
 
-#ifdef POWER_DETECT_PIN
-    // Configure POWER_DETECT_PIN as input-high before bootloader mode selection.
-    // Without hardware, floating pin defaults to HIGH (USB assumed) instead of LOW.
-    // When USB is detected at boot, force USB mode to recover from bad EEPROM state
-    // (e.g. BLE was written because pin was floating LOW on previous BLE firmware boot).
-    gpio_set_pin_input_high(POWER_DETECT_PIN);
-    if (gpio_read_pin(POWER_DETECT_PIN)) {
-        bootloader_boot_mode_set(BOOTLOADER_BOOT_MODE_USB);
+    // Validate EEPROM boot mode before platform_setup() selects it.
+    // On first boot or after EEPROM corruption, default to USB mode.
+    {
+        uint8_t mode = bootloader_boot_mode_get();
+        if (mode != BOOTLOADER_BOOT_MODE_USB &&
+            mode != BOOTLOADER_BOOT_MODE_BLE &&
+            mode != BOOTLOADER_BOOT_MODE_ESB) {
+            bootloader_boot_mode_set(BOOTLOADER_BOOT_MODE_USB);
+        }
     }
-#endif
 
     platform_setup();
 

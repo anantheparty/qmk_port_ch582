@@ -159,13 +159,6 @@ static gattAttribute_t hidAttrTbl[] = {
       (uint8_t *)&hidServiceUUID                /* pValue */
     },
 
-    // Included Service Declaration (Battery Service - placeholder)
-    { { ATT_BT_UUID_SIZE, includeUUID },
-      GATT_PERMIT_READ,
-      0,
-      (uint8_t *)&hidServiceUUID // Should point to Battery Service handle
-    },
-
     // HID Information Declaration
     { { ATT_BT_UUID_SIZE, characterUUID },
       GATT_PERMIT_READ,
@@ -217,13 +210,6 @@ static gattAttribute_t hidAttrTbl[] = {
       0,
       (uint8_t *)hidReportMap
     },
-    // HID Report Map External Report Reference
-    { { ATT_BT_UUID_SIZE, extReportRefUUID },
-      GATT_PERMIT_READ,
-      0,
-      (uint8_t *)&hidServiceUUID // Battery Service UUID placeholder
-    },
-
     // HID Report Keyboard Input Declaration
     { { ATT_BT_UUID_SIZE, characterUUID },
       GATT_PERMIT_READ,

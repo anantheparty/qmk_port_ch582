@@ -87,37 +87,22 @@ static void enter_sleep_mode(void);
 void power_mode_init(void) {
     uint32_t now = timer_read32();
     pm_state.last_activity_time = now;
-    // Initialize last_battery_check to now so battery check doesn't fire immediately
     pm_state.last_battery_check = now;
     pm_state.current_mode = POWER_MODE_ACTIVE;
-
-    // Initialize ADC hardware before first battery_measure() call.
-    // battery_init() is normally only called from IAP, so we must call it here.
-    battery_init();
-
-    // When USB power detection is not available, disable auto-sleep to prevent
-    // LowPower_Sleep() from freezing the MCU while USB is connected.
-#ifndef POWER_DETECT_PIN
+    // Disable auto-sleep unconditionally until power management is fully implemented.
+    // battery_calculate() has a critical-level bug with the obey65 custom battery_map
+    // when POWER_DETECT_PIN is absent, so skip ALL battery measurement for now.
     pm_state.auto_sleep_disabled = true;
-#endif
-
-    DEBUG_PRINTF("[PWR] Init, mode: %s\r\n", mode_names[pm_state.current_mode]);
+    DEBUG_PRINTF("[PWR] Init (power management disabled)\r\n");
 }
 
 void power_mode_task(void) {
-    // Phase 4.2: Periodically check battery/charging status.
-    // Only measure battery in wireless mode: battery_measure() powers off ADC
-    // at the end of each call, and re-init is needed every cycle. In USB-only
-    // mode we have no need for battery level anyway.
-#if defined(BLE_ENABLE) || defined(ESB_ENABLE)
-    if (timer_elapsed32(pm_state.last_battery_check) >= BATTERY_CHECK_INTERVAL_MS) {
-        pm_state.last_battery_check = timer_read32();
-        battery_init();  // Re-init ADC because battery_measure() powers it off
-        obey65_battery_update();
-        pm_state.usb_powered = obey65_battery_is_usb_connected();
-        pm_state.charging = obey65_battery_is_charging();
-    }
-#endif
+    // Battery measurement disabled: obey65 custom battery_map uses a * 10 scale
+    // that triggers battery_calculate()'s critical-level check unconditionally
+    // when POWER_DETECT_PIN is absent. Re-enable after fixing battery_calculate().
+    // #if defined(BLE_ENABLE) || defined(ESB_ENABLE)
+    //     if (timer_elapsed32(pm_state.last_battery_check) >= BATTERY_CHECK_INTERVAL_MS) { ... }
+    // #endif
 
     // Skip if forced mode is enabled
     if (pm_state.force_mode_enabled) {
