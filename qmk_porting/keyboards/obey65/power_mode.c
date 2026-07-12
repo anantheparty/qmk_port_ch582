@@ -259,7 +259,9 @@ static void apply_power_mode(power_mode_t mode) {
                  mode_names[pm_state.current_mode],
                  mode_names[mode]);
 
+#ifdef RGB_MATRIX_ENABLE
     power_mode_t prev_mode = pm_state.current_mode;
+#endif
     pm_state.current_mode = mode;
 
     switch (mode) {

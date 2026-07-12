@@ -1,77 +1,39 @@
-/**
- * BLE Protocol - MINIMAL DIAGNOSTIC VERSION
+/*
+ * Obey65 BLE transport.
  *
- * Absolute minimum to test if BLE advertising works at all.
- * No GATT services, no bonding, no QMK task.
- *
- * LED feedback (TMR2 4-LED strip):
- *   All RED       = init complete, waiting for TMOS start
- *   1 GREEN       = GAPROLE_STARTED  (BLE stack initialized)
- *   2 GREEN       = GAPROLE_ADVERTISING (RF is transmitting!)
- *   3 GREEN       = GAPROLE_CONNECTED
- *   All RED blink = GAPROLE_ERROR
+ * OBEY65_BLE_SMOKE_TEST builds only the CH58x peripheral role and advertising
+ * loop. It intentionally excludes QMK, HID over GATT, VIA, and WS2812 timers.
  */
 
 #include "protocol_ble.h"
-#include "CH58xBLE_LIB.H"
-#include "config.h"
-#include "hid_dev.h"
-#include "ble_compat.h"
-#include "report.h"
-#include "ws2812_tmr2.h"
 
-#ifdef DEBUG_UART_ENABLE
-#include "debug_uart.h"
+#include "CH58xBLE_LIB.H"
+#include "ble_compat.h"
+#include "config.h"
+
+#ifndef OBEY65_BLE_SMOKE_TEST
+#    include "hid_dev.h"
+#    include "report.h"
+#endif
+#if !defined(OBEY65_BLE_SMOKE_TEST) && !defined(OBEY65_BLE_NO_QMK_TEST)
+#    include "protocol_supplement.h"
 #endif
 
-// ============================================================================
-// LED helpers
-// ============================================================================
+#define BLE_START_DEVICE_EVT 0x0001
+#define BLE_STATUS_EVT       0x0002
+#define BLE_RUN_QMK_TASK_EVT 0x0004
+#define BLE_RETRY_REPORT_EVT 0x0008
 
-static const led_obey_t LED_RED   = {.r = 40, .g = 0,  .b = 0};
-static const led_obey_t LED_GREEN = {.r = 0,  .g = 40, .b = 0};
-static const led_obey_t LED_BLUE  = {.r = 0,  .g = 0,  .b = 40};
-static const led_obey_t LED_OFF   = {.r = 0,  .g = 0,  .b = 0};
+#define BLE_QMK_INTERVAL_MS          5
+#define BLE_REPORT_RETRY_MS          10
+#define BLE_AUX_REPORT_RETRY_LIMIT   100
+#define BLE_KEY_REPORT_RETRY_LIMIT   1000
+#define HID_ERROR_ROLLOVER_USAGE     0x01
+#define BLE_MANUFACTURER_MARKER_SIZE 3
 
-static void set_leds(uint8_t n_green, bool all_red) {
-    // DIAGNOSTIC: WS2812 disabled. Use A11 blink count to signal state:
-    //   all_red (error)  → fast blink
-    //   n_green=1        → A11 LOW  (off)
-    //   n_green=2        → A11 HIGH (on) = advertising
-    //   n_green=3        → A11 HIGH (on) = connected
-    if (all_red) {
-        // blink 3 times fast to signal error
-        for (int i = 0; i < 3; i++) {
-            GPIOA_SetBits(GPIO_Pin_11);
-            DelayMs(100);
-            GPIOA_ResetBits(GPIO_Pin_11);
-            DelayMs(100);
-        }
-    } else if (n_green >= 2) {
-        GPIOA_SetBits(GPIO_Pin_11);  // on = advertising/connected
-    } else {
-        GPIOA_ResetBits(GPIO_Pin_11);  // off = idle
-    }
-}
-
-// ============================================================================
-// State
-// ============================================================================
-
-static uint8_t bleTaskId   = INVALID_TASK_ID;
-static uint16_t bleConnHandle = GAP_CONNHANDLE_INIT;
-
-typedef enum {
-    BLE_STATE_IDLE = 0,
-    BLE_STATE_ADVERTISING,
-    BLE_STATE_CONNECTED,
-} ble_state_t;
-
-static ble_state_t bleState = BLE_STATE_IDLE;
-
-// ============================================================================
-// Advertising data  (minimal: flags + name)
-// ============================================================================
+#ifndef OBEY65_BLE_SMOKE_TEST
+static const uint8_t deviceName[GAP_DEVICE_NAME_LEN] = "Obey65";
+#endif
 
 static uint8_t advertData[] = {
     0x02, GAP_ADTYPE_FLAGS,
@@ -84,197 +46,372 @@ static uint8_t advertData[] = {
     LO_UINT16(GAP_APPEARE_HID_KEYBOARD),
     HI_UINT16(GAP_APPEARE_HID_KEYBOARD),
 
-    // Distinctive marker: company 0xFFFF + magic bytes 0xCA 0xFE 0xBE 0xEF
+    // Type + company 0xFFFF + marker BE EF CA = six bytes after length.
     0x06, GAP_ADTYPE_MANUFACTURER_SPECIFIC,
     0xFF, 0xFF,
-    0xCA, 0xFE, 0xBE,
+    0xBE, 0xEF, 0xCA,
 };
 
 static uint8_t scanRspData[] = {
-    // Local name in scan response too (belt-and-suspenders)
     0x07, GAP_ADTYPE_LOCAL_NAME_COMPLETE,
     'O', 'b', 'e', 'y', '6', '5',
 
     0x05, GAP_ADTYPE_SLAVE_CONN_INTERVAL_RANGE,
     LO_UINT16(8), HI_UINT16(8),
     LO_UINT16(8), HI_UINT16(8),
+
+#ifndef OBEY65_BLE_SMOKE_TEST
+    0x03, GAP_ADTYPE_16BIT_COMPLETE,
+    LO_UINT16(HID_SERV_UUID), HI_UINT16(HID_SERV_UUID),
+#endif
 };
 
-// ============================================================================
-// GAP callbacks
-// ============================================================================
+_Static_assert(sizeof(advertData) <= 31, "BLE advertising data exceeds 31 bytes");
+_Static_assert(sizeof(scanRspData) <= 31, "BLE scan response exceeds 31 bytes");
+_Static_assert(BLE_MANUFACTURER_MARKER_SIZE == 3, "scanner marker contract changed");
+
+typedef enum {
+    BLE_STATE_IDLE = 0,
+    BLE_STATE_ADVERTISING,
+    BLE_STATE_CONNECTED,
+} ble_state_t;
+
+static uint8_t              bleTaskId             = INVALID_TASK_ID;
+static uint16_t             bleConnHandle         = GAP_CONNHANDLE_INIT;
+static volatile ble_state_t bleState              = BLE_STATE_IDLE;
+static volatile bStatus_t   bleInitStatus         = SUCCESS;
+static bool                 bleAdvertisingEnabled = true;
+#ifndef OBEY65_BLE_SMOKE_TEST
+static bool                 bleConnectionSecure;
+
+typedef struct {
+    uint8_t id;
+    uint8_t length;
+    uint16_t retries;
+    bool    pending;
+    uint8_t data[8];
+} ble_pending_report_t;
+
+static ble_pending_report_t blePendingReports[] = {
+    {.id = HID_RPT_ID_KEYBOARD_IN, .length = 8},
+    {.id = HID_RPT_ID_MOUSE_IN, .length = 5},
+    {.id = HID_RPT_ID_CONSUMER_IN, .length = 2},
+    {.id = HID_RPT_ID_SYSTEM_IN, .length = 2},
+};
+
+static bool ble_reports_pending(void) {
+    for (uint8_t i = 0; i < ARRAY_SIZE(blePendingReports); ++i) {
+        if (blePendingReports[i].pending) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static void ble_clear_pending_reports(void) {
+    for (uint8_t i = 0; i < ARRAY_SIZE(blePendingReports); ++i) {
+        blePendingReports[i].pending = false;
+        blePendingReports[i].retries = 0;
+    }
+}
+
+static void ble_queue_report(uint8_t id, const uint8_t *data, uint8_t length) {
+    if (bleState != BLE_STATE_CONNECTED || bleConnHandle == GAP_CONNHANDLE_INIT) {
+        return;
+    }
+
+    for (uint8_t i = 0; i < ARRAY_SIZE(blePendingReports); ++i) {
+        ble_pending_report_t *pending = &blePendingReports[i];
+        if (pending->id != id || pending->length != length) {
+            continue;
+        }
+        bool wasPending = pending->pending;
+        tmos_memcpy(pending->data, data, length);
+        pending->pending = true;
+        if (!wasPending) {
+            pending->retries = 0;
+        }
+        if (bleTaskId != INVALID_TASK_ID) {
+            tmos_set_event(bleTaskId, BLE_RETRY_REPORT_EVT);
+        }
+        return;
+    }
+}
+
+static bool ble_flush_pending_reports(void) {
+    if (!bleConnectionSecure || bleState != BLE_STATE_CONNECTED || bleConnHandle == GAP_CONNHANDLE_INIT) {
+        return ble_reports_pending();
+    }
+
+    for (uint8_t i = 0; i < ARRAY_SIZE(blePendingReports); ++i) {
+        ble_pending_report_t *pending = &blePendingReports[i];
+        if (!pending->pending) {
+            continue;
+        }
+        bStatus_t status = HidDev_Report(pending->id, HID_REPORT_TYPE_INPUT, pending->length, pending->data);
+        if (status == SUCCESS) {
+            pending->pending = false;
+            pending->retries = 0;
+            continue;
+        }
+
+        bool isKeyboard = pending->id == HID_RPT_ID_KEYBOARD_IN;
+        bool permanent  = status == bleIncorrectMode || status == INVALIDPARAMETER;
+        uint16_t retryLimit = isKeyboard ? BLE_KEY_REPORT_RETRY_LIMIT : BLE_AUX_REPORT_RETRY_LIMIT;
+        if (pending->retries < retryLimit) {
+            pending->retries++;
+        }
+        bool exhausted = pending->retries >= retryLimit;
+
+        if (isKeyboard && (permanent || exhausted)) {
+            /* A dropped release can leave a host key stuck. Disconnect instead. */
+            return GAPRole_TerminateLink(bleConnHandle) != SUCCESS;
+        }
+        if (permanent || exhausted) {
+            pending->pending = false;
+            pending->retries = 0;
+        }
+    }
+    return ble_reports_pending();
+}
+#endif
+
+static void ble_record_status(bStatus_t status) {
+    if (bleInitStatus == SUCCESS && status != SUCCESS) {
+        bleInitStatus = status;
+    }
+}
+
+#if defined(OBEY65_BLE_SMOKE_TEST) || defined(OBEY65_BLE_NO_QMK_TEST)
+/* B17 is used only while QMK does not own its Caps Lock LED. */
+static void ble_indicator_set(bool on) {
+    if (on) {
+        GPIOB_SetBits(GPIO_Pin_17);
+    } else {
+        GPIOB_ResetBits(GPIO_Pin_17);
+    }
+}
+
+static void ble_indicator_update(void) {
+    static bool error_phase;
+
+    if (bleInitStatus != SUCCESS) {
+        error_phase = !error_phase;
+        ble_indicator_set(error_phase);
+        return;
+    }
+
+    ble_indicator_set(bleState == BLE_STATE_ADVERTISING || bleState == BLE_STATE_CONNECTED);
+}
+#else
+static void ble_indicator_update(void) {}
+#endif
+
+static void ble_reset_connection(void) {
+#ifndef OBEY65_BLE_SMOKE_TEST
+    HidDev_SetConnHandle(GAP_CONNHANDLE_INIT);
+    bleConnectionSecure = false;
+    ble_clear_pending_reports();
+#endif
+    bleConnHandle = GAP_CONNHANDLE_INIT;
+}
 
 static void ble_StateNotificationCB(gapRole_States_t newState, gapRoleEvent_t *pEvent) {
+    if (pEvent != NULL && pEvent->gap.opcode == GAP_LINK_TERMINATED_EVENT) {
+        ble_reset_connection();
+    }
+
     switch (newState & GAPROLE_STATE_ADV_MASK) {
-        case GAPROLE_STARTED: {
-            // Do NOT call GAP_ConfigDeviceAddr - use the default public BD_ADDR
-            // set by CH58X_BLEInit() via GetMACAddress(). Any call here may break RF.
+        case GAPROLE_STARTED:
             bleState = BLE_STATE_IDLE;
-            set_leds(1, false);  // 1 green = STARTED
-        } break;
+            break;
 
         case GAPROLE_ADVERTISING:
             bleState = BLE_STATE_ADVERTISING;
-            set_leds(2, false);  // 2 green = ADVERTISING (RF is on!)
             break;
 
         case GAPROLE_CONNECTED:
-            if (pEvent->gap.opcode == GAP_LINK_ESTABLISHED_EVENT) {
+            if (pEvent != NULL && pEvent->gap.opcode == GAP_LINK_ESTABLISHED_EVENT) {
                 bleConnHandle = pEvent->linkCmpl.connectionHandle;
+#ifndef OBEY65_BLE_SMOKE_TEST
                 HidDev_SetConnHandle(bleConnHandle);
+                bleConnectionSecure = false;
+                ble_clear_pending_reports();
+#endif
                 bleState = BLE_STATE_CONNECTED;
-                set_leds(3, false);  // 3 green = CONNECTED
             }
             break;
 
-        case GAPROLE_WAITING:
-            // Called on: disconnect, directed-adv timeout, or adv timeout.
-            // WCH example re-enables advertising unconditionally here.
-            bleConnHandle = GAP_CONNHANDLE_INIT;
-            bleState = BLE_STATE_IDLE;
-            {
-                uint8_t adv = TRUE;
-                GAPRole_SetParameter(GAPROLE_ADVERT_ENABLED, sizeof(uint8_t), &adv);
-            }
-            set_leds(1, false);
+        case GAPROLE_CONNECTED_ADV:
+            bleState = BLE_STATE_CONNECTED;
             break;
+
+        case GAPROLE_WAITING: {
+            ble_reset_connection();
+            bleState = BLE_STATE_IDLE;
+            if (bleAdvertisingEnabled) {
+                uint8_t advertise = TRUE;
+                ble_record_status(GAPRole_SetParameter(GAPROLE_ADVERT_ENABLED, sizeof(advertise), &advertise));
+            }
+        } break;
 
         case GAPROLE_ERROR:
-            set_leds(0, true);  // all red = ERROR
+            ble_record_status(FAILURE);
             break;
 
         default:
             break;
     }
+
+    ble_indicator_update();
 }
 
-static gapRolesCBs_t ble_PeripheralCBs = {
+static gapRolesCBs_t blePeripheralCallbacks = {
     ble_StateNotificationCB,
     NULL,
-    NULL
+    NULL,
 };
 
-static void ble_PasscodeCB(uint8_t *deviceAddr, uint16_t connHandle,
-                           uint8_t uiInputs, uint8_t uiOutputs) {
+static void ble_PasscodeCB(uint8_t *deviceAddr, uint16_t connHandle, uint8_t uiInputs, uint8_t uiOutputs) {
+    (void)deviceAddr;
+    (void)uiInputs;
+    (void)uiOutputs;
     GAPBondMgr_PasscodeRsp(connHandle, SUCCESS, 0);
 }
 
 static void ble_PairStateCB(uint16_t connHandle, uint8_t state, uint8_t status) {
+#ifndef OBEY65_BLE_SMOKE_TEST
+    if (connHandle != bleConnHandle) {
+        return;
+    }
+    if ((state == GAPBOND_PAIRING_STATE_COMPLETE || state == GAPBOND_PAIRING_STATE_BONDED) && status == SUCCESS) {
+        bleConnectionSecure = true;
+        HidDev_SetSecure(true);
+        if (bleTaskId != INVALID_TASK_ID && ble_reports_pending()) {
+            tmos_set_event(bleTaskId, BLE_RETRY_REPORT_EVT);
+        }
+    } else if (state == GAPBOND_PAIRING_STATE_STARTED || state == GAPBOND_PAIRING_STATE_COMPLETE || state == GAPBOND_PAIRING_STATE_BONDED) {
+        bleConnectionSecure = false;
+        HidDev_SetSecure(false);
+    }
+#else
+    (void)connHandle;
+    (void)state;
+    (void)status;
+#endif
 }
 
-static gapBondCBs_t ble_BondMgrCBs = {
+static gapBondCBs_t bleBondCallbacks = {
     ble_PasscodeCB,
-    ble_PairStateCB
+    ble_PairStateCB,
 };
 
-// ============================================================================
-// Task events
-// ============================================================================
-
-#define BLE_START_DEVICE_EVT  0x0001
-#define BLE_RUN_QMK_TASK_EVT  0x0002
-
-static void protocol_pre_task(void);
-static void protocol_post_task(void);
-extern void protocol_keyboard_task(void);
-extern void housekeeping_task(void);
-
-static uint16_t BLE_Task_ProcessEvent(uint8_t task_id, uint16_t events) {
+static uint16_t ble_TaskProcessEvent(uint8_t taskId, uint16_t events) {
     if (events & SYS_EVENT_MSG) {
-        uint8_t *pMsg;
-        if ((pMsg = tmos_msg_receive(bleTaskId)) != NULL) {
-            tmos_msg_deallocate(pMsg);
+        uint8_t *message = tmos_msg_receive(bleTaskId);
+        if (message != NULL) {
+            tmos_msg_deallocate(message);
         }
-        return (events ^ SYS_EVENT_MSG);
+        return events ^ SYS_EVENT_MSG;
     }
 
-    // Deferred start - called from inside TMOS loop (WCH example pattern)
     if (events & BLE_START_DEVICE_EVT) {
-        GAPRole_PeripheralStartDevice(bleTaskId, &ble_BondMgrCBs, &ble_PeripheralCBs);
-        return (events ^ BLE_START_DEVICE_EVT);
+        ble_record_status(GAPRole_PeripheralStartDevice(bleTaskId, &bleBondCallbacks, &blePeripheralCallbacks));
+        ble_indicator_update();
+        return events ^ BLE_START_DEVICE_EVT;
     }
 
-    // DIAGNOSTIC: QMK task DISABLED - test if QMK interferes with BLE RF
-    // If keyboard appears in scan, QMK task is the culprit
-    if (events & BLE_RUN_QMK_TASK_EVT) {
-        // Show actual BLE state on LEDs (no QMK task, no blink)
-        switch (bleState) {
-            case BLE_STATE_IDLE:        set_leds(1, false); break;
-            case BLE_STATE_ADVERTISING: set_leds(2, false); break;
-            case BLE_STATE_CONNECTED:   set_leds(3, false); break;
-        }
-        tmos_start_task(task_id, BLE_RUN_QMK_TASK_EVT, MS1_TO_SYSTEM_TIME(50));
-        return (events ^ BLE_RUN_QMK_TASK_EVT);
+    if (events & BLE_STATUS_EVT) {
+        ble_indicator_update();
+        tmos_start_task(taskId, BLE_STATUS_EVT, MS1_TO_SYSTEM_TIME(500));
+        return events ^ BLE_STATUS_EVT;
     }
+
+#if !defined(OBEY65_BLE_SMOKE_TEST) && !defined(OBEY65_BLE_NO_QMK_TEST)
+    if (events & BLE_RUN_QMK_TASK_EVT) {
+        run_qmk_task();
+        keyboard_check_protocol_mode();
+        tmos_start_task(taskId, BLE_RUN_QMK_TASK_EVT, MS1_TO_SYSTEM_TIME(BLE_QMK_INTERVAL_MS));
+        return events ^ BLE_RUN_QMK_TASK_EVT;
+    }
+#endif
+
+#ifndef OBEY65_BLE_SMOKE_TEST
+    if (events & BLE_RETRY_REPORT_EVT) {
+        if (ble_flush_pending_reports() && bleConnectionSecure) {
+            tmos_start_task(taskId, BLE_RETRY_REPORT_EVT, MS1_TO_SYSTEM_TIME(BLE_REPORT_RETRY_MS));
+        }
+        return events ^ BLE_RETRY_REPORT_EVT;
+    }
+#endif
 
     return 0;
 }
 
-// ============================================================================
-// Platform interface
-// ============================================================================
+#ifndef OBEY65_BLE_SMOKE_TEST
+static void ble_configure_bonding(void) {
+    uint32_t passcode    = 0;
+    uint8_t  pairingMode = GAPBOND_PAIRING_MODE_WAIT_FOR_REQ;
+    uint8_t  mitm        = FALSE;
+    uint8_t  io          = GAPBOND_IO_CAP_NO_INPUT_NO_OUTPUT;
+    uint8_t  bonding     = TRUE;
+
+    ble_record_status(GAPBondMgr_SetParameter(GAPBOND_PERI_DEFAULT_PASSCODE, sizeof(passcode), &passcode));
+    ble_record_status(GAPBondMgr_SetParameter(GAPBOND_PERI_PAIRING_MODE, sizeof(pairingMode), &pairingMode));
+    ble_record_status(GAPBondMgr_SetParameter(GAPBOND_PERI_MITM_PROTECTION, sizeof(mitm), &mitm));
+    ble_record_status(GAPBondMgr_SetParameter(GAPBOND_PERI_IO_CAPABILITIES, sizeof(io), &io));
+    ble_record_status(GAPBondMgr_SetParameter(GAPBOND_PERI_BONDING_ENABLED, sizeof(bonding), &bonding));
+}
+#endif
 
 static void platform_initialize(void) {
-    // DIAGNOSTIC: skip TMR2/WS2812 init - test if TMR2 DMA interferes with BLE RF
-    // tmr2_ws2812_init();
-    //
-    // Instead, use raw GPIO blink on A11 as state indicator (1=init, 2=advertising)
-    GPIOA_ModeCfg(GPIO_Pin_11, GPIO_ModeOut_PP_5mA);
-    GPIOA_ResetBits(GPIO_Pin_11);  // off during init
+#if defined(OBEY65_BLE_SMOKE_TEST) || defined(OBEY65_BLE_NO_QMK_TEST)
+    GPIOB_ModeCfg(GPIO_Pin_17, GPIO_ModeOut_PP_5mA);
+    ble_indicator_set(false);
+#endif
 
-    // (No blue LED phase - can't without WS2812)
+    ble_record_status(GAPRole_PeripheralInit());
 
-    // 1. GAPRole init (must be first)
-    GAPRole_PeripheralInit();
-
-    // 2. Register TMOS task
-    bleTaskId = TMOS_ProcessEventRegister(BLE_Task_ProcessEvent);
-
-    // 3. Set advertising intervals (match WCH official HID_Keyboard example exactly)
-    GAP_SetParamValue(TGAP_DISC_ADV_INT_MIN, 48);  // 30ms
-    GAP_SetParamValue(TGAP_DISC_ADV_INT_MAX, 80);  // 50ms
-    GAP_SetParamValue(TGAP_LIM_ADV_TIMEOUT,  60);  // 60s (safety: also set for general mode)
-
-    // 4. GAP role parameters
-    {
-        uint8_t  adv_on = TRUE;
-        uint16_t conn_min = 8, conn_max = 8;
-        GAPRole_SetParameter(GAPROLE_ADVERT_ENABLED,    sizeof(uint8_t),  &adv_on);
-        GAPRole_SetParameter(GAPROLE_ADVERT_DATA,       sizeof(advertData), advertData);
-        GAPRole_SetParameter(GAPROLE_SCAN_RSP_DATA,     sizeof(scanRspData), scanRspData);
-        GAPRole_SetParameter(GAPROLE_MIN_CONN_INTERVAL, sizeof(uint16_t), &conn_min);
-        GAPRole_SetParameter(GAPROLE_MAX_CONN_INTERVAL, sizeof(uint16_t), &conn_max);
+    bleTaskId = TMOS_ProcessEventRegister(ble_TaskProcessEvent);
+    if (bleTaskId == INVALID_TASK_ID) {
+        ble_record_status(FAILURE);
+        ble_indicator_update();
+        return;
     }
 
-    // 5. Device name
-    GGS_SetParameter(GGS_DEVICE_NAME_ATT, GAP_DEVICE_NAME_LEN, "Obey65");
+    GAP_SetParamValue(TGAP_DISC_ADV_INT_MIN, 160); // 100 ms
+    GAP_SetParamValue(TGAP_DISC_ADV_INT_MAX, 160); // 100 ms
 
-    // 6. Bond manager - DISABLED for minimal diagnostic
-    // (GAPBondMgr not needed just to test if advertising works)
+    uint8_t  advertise = TRUE;
+    uint16_t connMin   = 8;
+    uint16_t connMax   = 8;
+    ble_record_status(GAPRole_SetParameter(GAPROLE_ADVERT_ENABLED, sizeof(advertise), &advertise));
+    ble_record_status(GAPRole_SetParameter(GAPROLE_ADVERT_DATA, sizeof(advertData), advertData));
+    ble_record_status(GAPRole_SetParameter(GAPROLE_SCAN_RSP_DATA, sizeof(scanRspData), scanRspData));
+    ble_record_status(GAPRole_SetParameter(GAPROLE_MIN_CONN_INTERVAL, sizeof(connMin), &connMin));
+    ble_record_status(GAPRole_SetParameter(GAPROLE_MAX_CONN_INTERVAL, sizeof(connMax), &connMax));
 
-    // 7. GATT services - DISABLED for minimal diagnostic
-    // If advertising works without GATT, the GATT table is the problem
-    GGS_AddService(GATT_ALL_SERVICES);
-    GATTServApp_AddService(GATT_ALL_SERVICES);
-    // HidDev_AddService();  // <-- DISABLED: test if HID GATT is blocking RF
+#ifndef OBEY65_BLE_SMOKE_TEST
+    ble_record_status(GGS_SetParameter(GGS_DEVICE_NAME_ATT, sizeof(deviceName), (void *)deviceName));
+    ble_configure_bonding();
+    ble_record_status(GGS_AddService(GATT_ALL_SERVICES));
+    ble_record_status(GATTServApp_AddService(GATT_ALL_SERVICES));
+    ble_record_status(HidDev_AddService());
+#endif
 
-    // 8. Show all-red = init done, waiting for TMOS to start BLE
-    set_leds(0, true);
-
-    // 9. Deferred start (WCH pattern: GAPRole_PeripheralStartDevice from TMOS event)
-    tmos_set_event(bleTaskId, BLE_START_DEVICE_EVT);
-
-    // 10. QMK task
-    tmos_start_task(bleTaskId, BLE_RUN_QMK_TASK_EVT, MS1_TO_SYSTEM_TIME(10));
+    if (bleInitStatus == SUCCESS) {
+        tmos_set_event(bleTaskId, BLE_START_DEVICE_EVT);
+#if !defined(OBEY65_BLE_SMOKE_TEST) && !defined(OBEY65_BLE_NO_QMK_TEST)
+        tmos_start_task(bleTaskId, BLE_RUN_QMK_TASK_EVT, MS1_TO_SYSTEM_TIME(BLE_QMK_INTERVAL_MS));
+#endif
+    }
+    tmos_start_task(bleTaskId, BLE_STATUS_EVT, MS1_TO_SYSTEM_TIME(500));
 }
 
-static void protocol_setup(void) {}
-
-static void protocol_init(void) {}
-
-static void protocol_pre_task(void) {}
-
-static void protocol_post_task(void) {}
+static void ble_protocol_setup(void) {}
+static void ble_protocol_init(void) {}
+static void ble_protocol_pre_task(void) {}
+static void ble_protocol_post_task(void) {}
 
 static void platform_run(void) {
     TMOS_SystemProcess();
@@ -284,41 +421,93 @@ static void platform_reboot(void) {
     SYS_ResetExecute();
 }
 
-// ============================================================================
-// HID report sending
-// ============================================================================
+#ifndef OBEY65_BLE_SMOKE_TEST
+static void ble_send_keyboard_payload(uint8_t mods, uint8_t reserved, const uint8_t keys[KEYBOARD_REPORT_KEYS]) {
+    if (bleState != BLE_STATE_CONNECTED || bleConnHandle == GAP_CONNHANDLE_INIT) {
+        return;
+    }
+
+    uint8_t payload[8] = {mods, reserved, 0, 0, 0, 0, 0, 0};
+    for (uint8_t i = 0; i < KEYBOARD_REPORT_KEYS; ++i) {
+        payload[i + 2] = keys[i];
+    }
+    ble_queue_report(HID_RPT_ID_KEYBOARD_IN, payload, sizeof(payload));
+}
+#endif
 
 static void send_keyboard(report_keyboard_t *report) {
-    if (bleState != BLE_STATE_CONNECTED || bleConnHandle == GAP_CONNHANDLE_INIT) return;
-    HidDev_Report(HID_RPT_ID_KEYBOARD_IN, HID_REPORT_TYPE_INPUT, 8, (uint8_t *)report);
+#ifndef OBEY65_BLE_SMOKE_TEST
+    ble_send_keyboard_payload(report->mods, report->reserved, report->keys);
+#else
+    (void)report;
+#endif
 }
 
-static void send_nkro(report_nkro_t *report) {}
+static void send_nkro(report_nkro_t *report) {
+#ifndef OBEY65_BLE_SMOKE_TEST
+    uint8_t keys[KEYBOARD_REPORT_KEYS] = {0};
+    uint8_t count = 0;
+
+    for (uint16_t usage = 1; usage < NKRO_REPORT_BITS * 8; ++usage) {
+        if ((report->bits[usage >> 3] & (1U << (usage & 7))) == 0) {
+            continue;
+        }
+        if (count == KEYBOARD_REPORT_KEYS) {
+            for (uint8_t i = 0; i < KEYBOARD_REPORT_KEYS; ++i) {
+                keys[i] = HID_ERROR_ROLLOVER_USAGE;
+            }
+            break;
+        }
+        keys[count++] = (uint8_t)usage;
+    }
+
+    ble_send_keyboard_payload(report->mods, 0, keys);
+#else
+    (void)report;
+#endif
+}
 
 static void send_mouse(report_mouse_t *report) {
-#ifdef MOUSE_ENABLE
-    if (bleState != BLE_STATE_CONNECTED || bleConnHandle == GAP_CONNHANDLE_INIT) return;
-    HidDev_Report(HID_RPT_ID_MOUSE_IN, HID_REPORT_TYPE_INPUT, 5, (uint8_t *)report);
+#if defined(MOUSE_ENABLE) && !defined(OBEY65_BLE_SMOKE_TEST)
+    if (bleState == BLE_STATE_CONNECTED && bleConnHandle != GAP_CONNHANDLE_INIT) {
+        uint8_t payload[5] = {
+            report->buttons,
+            (uint8_t)report->x,
+            (uint8_t)report->y,
+            (uint8_t)report->v,
+            (uint8_t)report->h,
+        };
+        ble_queue_report(HID_RPT_ID_MOUSE_IN, payload, sizeof(payload));
+    }
+#else
+    (void)report;
 #endif
 }
 
 static void send_extra(report_extra_t *report) {
-    if (bleState != BLE_STATE_CONNECTED || bleConnHandle == GAP_CONNHANDLE_INIT) return;
-    if (report->report_id == REPORT_ID_CONSUMER) {
-        HidDev_Report(HID_RPT_ID_CONSUMER_IN, HID_REPORT_TYPE_INPUT, 2, (uint8_t *)&report->usage);
-    } else if (report->report_id == REPORT_ID_SYSTEM) {
-        uint8_t d = report->usage & 0xFF;
-        HidDev_Report(HID_RPT_ID_SYSTEM_IN, HID_REPORT_TYPE_INPUT, 1, &d);
+#ifndef OBEY65_BLE_SMOKE_TEST
+    if (bleState != BLE_STATE_CONNECTED || bleConnHandle == GAP_CONNHANDLE_INIT) {
+        return;
     }
+    if (report->report_id == REPORT_ID_CONSUMER) {
+        uint8_t usage[2] = {(uint8_t)report->usage, (uint8_t)(report->usage >> 8)};
+        ble_queue_report(HID_RPT_ID_CONSUMER_IN, usage, sizeof(usage));
+    } else if (report->report_id == REPORT_ID_SYSTEM) {
+        uint8_t usage[2] = {(uint8_t)report->usage, (uint8_t)(report->usage >> 8)};
+        ble_queue_report(HID_RPT_ID_SYSTEM_IN, usage, sizeof(usage));
+    }
+#else
+    (void)report;
+#endif
 }
 
 static uint8_t ble_keyboard_leds(void) {
+#ifndef OBEY65_BLE_SMOKE_TEST
     return HidDev_GetKeyboardLeds();
+#else
+    return 0;
+#endif
 }
-
-// ============================================================================
-// Protocol interface
-// ============================================================================
 
 const ch582_interface_t ch582_protocol_ble = {
     .ch582_common_driver.keyboard_leds = ble_keyboard_leds,
@@ -326,31 +515,29 @@ const ch582_interface_t ch582_protocol_ble = {
     .ch582_common_driver.send_nkro     = send_nkro,
     .ch582_common_driver.send_mouse    = send_mouse,
     .ch582_common_driver.send_extra    = send_extra,
-    .ch582_platform_initialize  = platform_initialize,
-    .ch582_protocol_setup       = protocol_setup,
-    .ch582_protocol_init        = protocol_init,
-    .ch582_protocol_pre_task    = protocol_pre_task,
-    .ch582_protocol_post_task   = protocol_post_task,
-    .ch582_platform_run         = platform_run,
-    .ch582_platform_reboot      = platform_reboot,
+    .ch582_platform_initialize         = platform_initialize,
+    .ch582_protocol_setup              = ble_protocol_setup,
+    .ch582_protocol_init               = ble_protocol_init,
+    .ch582_protocol_pre_task           = ble_protocol_pre_task,
+    .ch582_protocol_post_task          = ble_protocol_post_task,
+    .ch582_platform_run                = platform_run,
+    .ch582_platform_reboot             = platform_reboot,
 };
-
-// ============================================================================
-// Public API
-// ============================================================================
 
 bool ble_is_connected(void) {
     return bleState == BLE_STATE_CONNECTED;
 }
 
 void ble_start_advertising(void) {
-    uint8_t adv = TRUE;
-    GAPRole_SetParameter(GAPROLE_ADVERT_ENABLED, sizeof(uint8_t), &adv);
+    bleAdvertisingEnabled = true;
+    uint8_t advertise = TRUE;
+    ble_record_status(GAPRole_SetParameter(GAPROLE_ADVERT_ENABLED, sizeof(advertise), &advertise));
 }
 
 void ble_stop_advertising(void) {
-    uint8_t adv = FALSE;
-    GAPRole_SetParameter(GAPROLE_ADVERT_ENABLED, sizeof(uint8_t), &adv);
+    bleAdvertisingEnabled = false;
+    uint8_t advertise = FALSE;
+    ble_record_status(GAPRole_SetParameter(GAPROLE_ADVERT_ENABLED, sizeof(advertise), &advertise));
 }
 
 void ble_disconnect(void) {
@@ -360,16 +547,36 @@ void ble_disconnect(void) {
 }
 
 bool ble_switch_slot(uint8_t slot) {
-    ble_disconnect();
-    ble_start_advertising();
-    return true;
+    return ble_slot_is_supported(slot);
 }
 
-uint8_t ble_get_current_slot(void)    { return 0; }
-void    ble_clear_all_bonds(void)     { GAPBondMgr_SetParameter(GAPBOND_ERASE_ALLBONDS, 0, NULL); }
-uint8_t ble_get_bond_count(void)      { return 0; }
+bool ble_slot_is_supported(uint8_t slot) {
+    return slot == 0;
+}
 
-void ble_set_power_mode(ble_power_mode_t mode) {}
-ble_power_mode_t ble_get_power_mode(void) { return BLE_POWER_LOW_LATENCY; }
+uint8_t ble_get_current_slot(void) {
+    return 0;
+}
+
+void ble_clear_all_bonds(void) {
+    GAPBondMgr_SetParameter(GAPBOND_ERASE_ALLBONDS, 0, NULL);
+}
+
+uint8_t ble_get_bond_count(void) {
+    uint8_t count = 0;
+    if (GAPBondMgr_GetParameter(GAPBOND_BOND_COUNT, &count) != SUCCESS) {
+        return 0;
+    }
+    return count;
+}
+
+void ble_set_power_mode(ble_power_mode_t mode) {
+    (void)mode;
+}
+
+ble_power_mode_t ble_get_power_mode(void) {
+    return BLE_POWER_LOW_LATENCY;
+}
+
 void ble_on_key_activity(void) {}
 void ble_on_idle(void) {}

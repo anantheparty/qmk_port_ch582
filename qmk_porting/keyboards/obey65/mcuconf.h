@@ -21,6 +21,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define DEBUG_BAUDRATE       460800
 #define DCDC_ENABLE          1
 #define FREQ_SYS             40000000
-#define LSE_ENABLE           1
-#define BLE_SLOT_NUM         4
+#ifndef LSE_ENABLE
+#    define LSE_ENABLE       0
+#endif
+#define BLE_SLOT_NUM         1
 #define HSE_LOAD_CAPACITANCE 20 // in pF unit

@@ -40,7 +40,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 /* Uncomment for RSA signature support */
-#if defined BLE_ENABLE || (defined ESB_ENABLE && (ESB_ENABLE == 1 || ESB_ENABLE == 2))
+#if (defined BLE_ENABLE || (defined ESB_ENABLE && (ESB_ENABLE == 1 || ESB_ENABLE == 2))) && \
+    !defined CH58X_DISABLE_WIRELESS_IAP_HOOKS
 #define MCUBOOT_SIGN_RSA
 #endif
 

@@ -15,6 +15,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "atomic_util.h"
 #include "gpio.h"
 #include "timer.h"
 #include "usb_main.h"
@@ -57,6 +58,17 @@ static volatile uint8_t extrakey_state = HID_STATE_IDLE;
 static volatile uint8_t qmkraw_state = HID_STATE_IDLE;
 #endif
 
+static volatile bool keyboard_out_pending;
+static uint8_t       keyboard_out_value;
+#ifdef RGB_RAW_ENABLE
+static volatile bool rgbraw_out_pending;
+static uint8_t       rgbraw_pending_buffer[RGBRAW_OUT_EP_SIZE];
+#endif
+#ifdef RAW_ENABLE
+static volatile bool qmkraw_out_pending;
+static uint8_t       qmkraw_pending_buffer[QMKRAW_OUT_EP_SIZE];
+#endif
+
 USB_NOCACHE_RAM_SECTION USB_MEM_ALIGNX uint8_t kbd_out_buffer[CONFIG_USB_ALIGN_SIZE];
 #ifdef RGB_RAW_ENABLE
 USB_NOCACHE_RAM_SECTION USB_MEM_ALIGNX uint8_t rgbraw_out_buffer[RGBRAW_OUT_EP_SIZE];
@@ -81,7 +93,12 @@ __HIGH_CODE
 #endif
 void usbd_hid_kbd_out_callback(uint8_t ep, uint32_t nbytes)
 {
-    keyboard_leds_set(kbd_out_buffer[0]);
+    if (nbytes == KBD_OUT_EP_SIZE) {
+        keyboard_out_value = kbd_out_buffer[0];
+        keyboard_out_pending = true;
+        return;
+    }
+    memset(kbd_out_buffer, 0, sizeof(kbd_out_buffer));
     usbd_ep_start_read(ep, kbd_out_buffer, KBD_OUT_EP_SIZE);
 }
 
@@ -102,7 +119,12 @@ __HIGH_CODE
 #endif
 void usbd_hid_rgb_raw_out_callback(uint8_t ep, uint32_t nbytes)
 {
-    receive_rgb_raw(rgbraw_out_buffer, sizeof(rgbraw_out_buffer));
+    if (nbytes == sizeof(rgbraw_out_buffer)) {
+        memcpy(rgbraw_pending_buffer, rgbraw_out_buffer, sizeof(rgbraw_pending_buffer));
+        rgbraw_out_pending = true;
+        return;
+    }
+    memset(rgbraw_out_buffer, 0, sizeof(rgbraw_out_buffer));
     usbd_ep_start_read(ep, rgbraw_out_buffer, sizeof(rgbraw_out_buffer));
 }
 #endif
@@ -135,18 +157,82 @@ __HIGH_CODE
 #endif
 void usbd_hid_qmk_raw_out_callback(uint8_t ep, uint32_t nbytes)
 {
-    receive_qmk_raw(qmkraw_out_buffer, sizeof(qmkraw_out_buffer));
+    if (nbytes == sizeof(qmkraw_out_buffer)) {
+        memcpy(qmkraw_pending_buffer, qmkraw_out_buffer, sizeof(qmkraw_pending_buffer));
+        qmkraw_out_pending = true;
+        return;
+    }
+    memset(qmkraw_out_buffer, 0, sizeof(qmkraw_out_buffer));
     usbd_ep_start_read(ep, qmkraw_out_buffer, sizeof(qmkraw_out_buffer));
 }
 #endif
 
+void usb_out_task(void)
+{
+    bool have_keyboard_out = false;
+    uint8_t keyboard_value = 0;
+#ifdef RGB_RAW_ENABLE
+    bool have_rgbraw_out = false;
+    uint8_t rgbraw_frame[RGBRAW_OUT_EP_SIZE];
+#endif
+#ifdef RAW_ENABLE
+    bool have_qmkraw_out = false;
+    uint8_t qmkraw_frame[QMKRAW_OUT_EP_SIZE];
+#endif
+
+    ATOMIC_BLOCK_FORCEON {
+        if (keyboard_out_pending) {
+            keyboard_value = keyboard_out_value;
+            keyboard_out_pending = false;
+            have_keyboard_out = true;
+        }
+#ifdef RGB_RAW_ENABLE
+        if (rgbraw_out_pending) {
+            memcpy(rgbraw_frame, rgbraw_pending_buffer, sizeof(rgbraw_frame));
+            rgbraw_out_pending = false;
+            have_rgbraw_out = true;
+        }
+#endif
+#ifdef RAW_ENABLE
+        if (qmkraw_out_pending) {
+            memcpy(qmkraw_frame, qmkraw_pending_buffer, sizeof(qmkraw_frame));
+            qmkraw_out_pending = false;
+            have_qmkraw_out = true;
+        }
+#endif
+    }
+
+    if (have_keyboard_out) {
+        memset(kbd_out_buffer, 0, sizeof(kbd_out_buffer));
+        usbd_ep_start_read(KBD_OUT_EP, kbd_out_buffer, KBD_OUT_EP_SIZE);
+        keyboard_leds_set(keyboard_value);
+    }
+#ifdef RGB_RAW_ENABLE
+    if (have_rgbraw_out) {
+        memset(rgbraw_out_buffer, 0, sizeof(rgbraw_out_buffer));
+        usbd_ep_start_read(RGBRAW_OUT_EP, rgbraw_out_buffer, sizeof(rgbraw_out_buffer));
+        receive_rgb_raw(rgbraw_frame, sizeof(rgbraw_frame));
+    }
+#endif
+#ifdef RAW_ENABLE
+    if (have_qmkraw_out) {
+        memset(qmkraw_out_buffer, 0, sizeof(qmkraw_out_buffer));
+        usbd_ep_start_read(QMKRAW_OUT_EP, qmkraw_out_buffer, sizeof(qmkraw_out_buffer));
+        receive_qmk_raw(qmkraw_frame, sizeof(qmkraw_frame));
+    }
+#endif
+}
+
 void usbd_configure_done_callback()
 {
+    keyboard_out_pending = false;
     usbd_ep_start_read(KBD_OUT_EP, kbd_out_buffer, KBD_OUT_EP_SIZE);
 #ifdef RGB_RAW_ENABLE
+    rgbraw_out_pending = false;
     usbd_ep_start_read(RGBRAW_OUT_EP, rgbraw_out_buffer, sizeof(rgbraw_out_buffer));
 #endif
 #ifdef RAW_ENABLE
+    qmkraw_out_pending = false;
     usbd_ep_start_read(QMKRAW_OUT_EP, qmkraw_out_buffer, sizeof(qmkraw_out_buffer));
 #endif
 }
@@ -200,6 +286,13 @@ int usb_dc_deinit()
     extrakey_state = HID_STATE_IDLE;
 #ifdef RAW_ENABLE
     qmkraw_state = HID_STATE_IDLE;
+#endif
+    keyboard_out_pending = false;
+#ifdef RGB_RAW_ENABLE
+    rgbraw_out_pending = false;
+#endif
+#ifdef RAW_ENABLE
+    qmkraw_out_pending = false;
 #endif
 
     memset(kbd_out_buffer, 0x00, sizeof(kbd_out_buffer));

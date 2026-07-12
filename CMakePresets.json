@@ -1,0 +1,96 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 20,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "obey65-base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/out/build/${presetName}",
+      "cacheVariables": {
+        "keyboard": "obey65",
+        "keymap": "default",
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "obey65-wired",
+      "displayName": "Obey65 wired baseline",
+      "inherits": "obey65-base",
+      "cacheVariables": {
+        "OBEY65_PROFILE": "wired"
+      }
+    },
+    {
+      "name": "obey65-ble-smoke",
+      "displayName": "Obey65 BLE advertising smoke test",
+      "inherits": "obey65-base",
+      "cacheVariables": {
+        "OBEY65_PROFILE": "ble-smoke"
+      }
+    },
+    {
+      "name": "obey65-ble-smoke-lse",
+      "displayName": "Obey65 BLE advertising smoke test (external LSE)",
+      "inherits": "obey65-base",
+      "cacheVariables": {
+        "OBEY65_PROFILE": "ble-smoke",
+        "OBEY65_USE_LSE": "ON"
+      }
+    },
+    {
+      "name": "obey65-ble-dev",
+      "displayName": "Obey65 BLE integration build",
+      "inherits": "obey65-base",
+      "cacheVariables": {
+        "OBEY65_PROFILE": "ble-dev"
+      }
+    },
+    {
+      "name": "obey65-ble-hid",
+      "displayName": "Obey65 BLE HOGP service test",
+      "inherits": "obey65-base",
+      "cacheVariables": {
+        "OBEY65_PROFILE": "ble-hid"
+      }
+    },
+    {
+      "name": "obey65-ble-qmk",
+      "displayName": "Obey65 BLE and QMK test",
+      "inherits": "obey65-base",
+      "cacheVariables": {
+        "OBEY65_PROFILE": "ble-qmk"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "obey65-wired",
+      "configurePreset": "obey65-wired"
+    },
+    {
+      "name": "obey65-ble-smoke",
+      "configurePreset": "obey65-ble-smoke"
+    },
+    {
+      "name": "obey65-ble-smoke-lse",
+      "configurePreset": "obey65-ble-smoke-lse"
+    },
+    {
+      "name": "obey65-ble-dev",
+      "configurePreset": "obey65-ble-dev"
+    },
+    {
+      "name": "obey65-ble-hid",
+      "configurePreset": "obey65-ble-hid"
+    },
+    {
+      "name": "obey65-ble-qmk",
+      "configurePreset": "obey65-ble-qmk"
+    }
+  ]
+}

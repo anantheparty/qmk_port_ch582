@@ -64,89 +64,84 @@
       "shortName": "USB"
     },
     {
-      "name": "BLE1",
-      "title": "Tap = Use BLE slot 1, Hold = Clean BLE slot 1 binding",
-      "shortName": "BLE1"
+      "name": "BLE",
+      "title": "BLE mode (single selectable slot)",
+      "shortName": "BLE"
     },
     {
-      "name": "BLE2",
-      "title": "Tap = Use BLE slot 2, Hold = Clean BLE slot 2 binding",
-      "shortName": "BLE2"
+      "name": "RESERVED_13",
+      "title": "Reserved legacy BLE keycode (no action)",
+      "shortName": "RSV13"
     },
     {
-      "name": "BLE3",
-      "title": "Tap = Use BLE slot 3, Hold = Clean BLE slot 3 binding",
-      "shortName": "BLE3"
+      "name": "RESERVED_14",
+      "title": "Reserved legacy BLE keycode (no action)",
+      "shortName": "RSV14"
     },
     {
-      "name": "BLE4",
-      "title": "Tap = Use BLE slot 4, Hold = Clean BLE slot 4 binding",
-      "shortName": "BLE4"
+      "name": "RESERVED_15",
+      "title": "Reserved legacy BLE keycode (no action)",
+      "shortName": "RSV15"
     },
     {
-      "name": "BLE5",
-      "title": "Tap = Use BLE slot 5, Hold = Clean BLE slot 5 binding",
-      "shortName": "BLE5"
+      "name": "RESERVED_16",
+      "title": "Reserved legacy BLE keycode (no action)",
+      "shortName": "RSV16"
     },
     {
-      "name": "BLE6",
-      "title": "Tap = Use BLE slot 6, Hold = Clean BLE slot 6 binding",
-      "shortName": "BLE6"
+      "name": "RESERVED_17",
+      "title": "Reserved legacy BLE keycode (no action)",
+      "shortName": "RSV17"
     },
     {
-      "name": "BLE7",
-      "title": "Tap = Use BLE slot 7, Hold = Clean BLE slot 7 binding",
-      "shortName": "BLE7"
+      "name": "RESERVED_18",
+      "title": "Reserved legacy BLE keycode (no action)",
+      "shortName": "RSV18"
     },
     {
-      "name": "BLE8",
-      "title": "Tap = Use BLE slot 8, Hold = Clean BLE slot 8 binding",
-      "shortName": "BLE8"
+      "name": "RESERVED_19",
+      "title": "Reserved legacy BLE keycode (no action)",
+      "shortName": "RSV19"
     },
     {
-      "name": "BLE9",
-      "title": "Tap = Use BLE slot 9, Hold = Clean BLE slot 9 binding",
-      "shortName": "BLE9"
+      "name": "RESERVED_20",
+      "title": "Reserved legacy BLE keycode (no action)",
+      "shortName": "RSV20"
     },
     {
-      "name": "BLE10",
-      "title": "Tap = Use BLE slot 10, Hold = Clean BLE slot 10 binding",
-      "shortName": "BLE10"
+      "name": "RESERVED_21",
+      "title": "Reserved legacy BLE keycode (no action)",
+      "shortName": "RSV21"
     },
     {
-      "name": "BLE11",
-      "title": "Tap = Use BLE slot 11, Hold = Clean BLE slot 11 binding",
-      "shortName": "BLE11"
+      "name": "RESERVED_22",
+      "title": "Reserved legacy BLE keycode (no action)",
+      "shortName": "RSV22"
     },
     {
-      "name": "BLE12",
-      "title": "Tap = Use BLE slot 12, Hold = Clean BLE slot 12 binding",
-      "shortName": "BLE12"
+      "name": "RESERVED_23",
+      "title": "Reserved legacy BLE keycode (no action)",
+      "shortName": "RSV23"
     },
     {
-      "name": "BLE13",
-      "title": "Tap = Use BLE slot 13, Hold = Clean BLE slot 13 binding",
-      "shortName": "BLE13"
+      "name": "RESERVED_24",
+      "title": "Reserved legacy BLE keycode (no action)",
+      "shortName": "RSV24"
     },
     {
-      "name": "BLE814",
-      "title": "Tap = Use BLE slot 14, Hold = Clean BLE slot 14 binding",
-      "shortName": "BLE14"
+      "name": "RESERVED_25",
+      "title": "Reserved legacy BLE keycode (no action)",
+      "shortName": "RSV25"
     },
     {
-      "name": "BLE815",
-      "title": "Tap = Use BLE slot 15, Hold = Clean BLE slot 15 binding",
-      "shortName": "BLE15"
+      "name": "RESERVED_26",
+      "title": "Reserved legacy BLE keycode (no action)",
+      "shortName": "RSV26"
     },
     {
-      "name": "BLE816",
-      "title": "Tap = Use BLE slot 16, Hold = Clean BLE slot 16 binding",
-      "shortName": "BLE16"
-    },
-    {
-      "name": "BC_A",
-      "title": "Clean ALL BLE slot binding",
-      "shortName": "BC_A"
+      "name": "RESERVED_27",
+      "title": "Reserved legacy BLE keycode (no action)",
+      "shortName": "RSV27"
     },
     {
       "name": "2.4G",

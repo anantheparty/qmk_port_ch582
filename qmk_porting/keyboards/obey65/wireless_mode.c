@@ -137,17 +137,22 @@ bool wireless_mode_switch_ble_slot(ble_slot_t slot) {
         return false;
     }
 
-    DEBUG_PRINTF("[MODE] BLE slot: %d\r\n", slot);
-    wm_state.ble_slot = slot;
-
-    // If already in BLE mode, trigger reconnection to new slot
-    if (wm_state.current_mode == WIRELESS_MODE_BLE) {
-#ifdef BLE_ENABLE
-        ble_switch_slot(slot);
-#endif
+#ifndef BLE_ENABLE
+    return false;
+#else
+    if (!ble_slot_is_supported(slot)) {
+        DEBUG_PRINTF("[MODE] BLE slot %d is not supported\r\n", slot);
+        return false;
     }
 
+    if (wm_state.current_mode == WIRELESS_MODE_BLE && !ble_switch_slot(slot)) {
+        return false;
+    }
+
+    DEBUG_PRINTF("[MODE] BLE slot: %d\r\n", slot);
+    wm_state.ble_slot = slot;
     return true;
+#endif
 }
 
 ble_slot_t wireless_mode_get_ble_slot(void) {
@@ -157,8 +162,11 @@ ble_slot_t wireless_mode_get_ble_slot(void) {
 bool wireless_mode_available(wireless_mode_t mode) {
     switch (mode) {
         case WIRELESS_MODE_USB:
-            // USB always available (even if not connected)
+#ifdef USB_ENABLE
             return true;
+#else
+            return false;
+#endif
 
         case WIRELESS_MODE_BLE:
 #ifdef BLE_ENABLE
@@ -311,41 +319,37 @@ bool process_wireless_keycode(uint16_t keycode, bool pressed) {
         return false;
     }
 
-    // USB mode key (WL_USB or VIA keycode QK_KB_11)
-    if (keycode == WL_USB || keycode == (QK_KB_0 + 11)) {
-        wm_state.previous_mode = WIRELESS_MODE_USB;  // Remember as explicit choice
-        return wireless_mode_switch(WIRELESS_MODE_USB);
+    if (keycode == WL_USB) {
+        if (wireless_mode_switch(WIRELESS_MODE_USB)) {
+            wm_state.previous_mode = WIRELESS_MODE_USB;
+        }
+        return true;
     }
 
-    // 2.4G mode key (WL_ESB or VIA keycode QK_KB_28)
-    if (keycode == WL_ESB || keycode == (QK_KB_0 + 28)) {
-        wm_state.previous_mode = WIRELESS_MODE_ESB;  // Remember as explicit choice
-        return wireless_mode_switch(WIRELESS_MODE_ESB);
+    if (keycode == WL_ESB) {
+        if (wireless_mode_switch(WIRELESS_MODE_ESB)) {
+            wm_state.previous_mode = WIRELESS_MODE_ESB;
+        }
+        return true;
     }
 
-    // BLE slot keys (WL_BLE0 - WL_BLE3)
-    if (keycode >= WL_BLE0 && keycode <= (WL_BLE0 + BLE_SLOT_MAX - 1)) {
-        ble_slot_t slot = keycode - WL_BLE0;
-        if (slot < BLE_SLOT_MAX) {
+    if (keycode == WL_BLE0) {
+        if (wireless_mode_switch_ble_slot(BLE_SLOT_0)) {
             wm_state.previous_mode = WIRELESS_MODE_BLE;  // Remember as explicit choice
-            wireless_mode_switch_ble_slot(slot);
-            return wireless_mode_switch(WIRELESS_MODE_BLE);
+            (void)wireless_mode_switch(WIRELESS_MODE_BLE);
         }
+        return true;
     }
 
-    // VIA BLE slot keys (QK_KB_12 - QK_KB_15 for BLE1-4, mapped to slot 0-3)
-    if (keycode >= (QK_KB_0 + 12) && keycode <= (QK_KB_0 + 15)) {
-        ble_slot_t slot = keycode - (QK_KB_0 + 12);  // BLE1=slot0, BLE2=slot1, etc.
-        if (slot < BLE_SLOT_MAX) {
-            wm_state.previous_mode = WIRELESS_MODE_BLE;
-            wireless_mode_switch_ble_slot(slot);
-            return wireless_mode_switch(WIRELESS_MODE_BLE);
-        }
+    // Keep legacy BLE2..BLE16 keycodes inert instead of reassigning their ABI.
+    if (keycode >= (QK_KB_0 + 13) && keycode <= (QK_KB_0 + 27)) {
+        return true;
     }
 
-    // Battery display key (VIA keycode QK_KB_29)
-    if (keycode == (QK_KB_0 + 29)) {
+    if (keycode == WL_BATTERY) {
+#ifdef RGB_MATRIX_ENABLE
         status_indicator_show_battery(3000);  // Show battery for 3 seconds
+#endif
         return true;
     }
 

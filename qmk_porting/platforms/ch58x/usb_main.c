@@ -54,6 +54,7 @@ static uint16_t usb_ProcessEvent(uint8_t task_id, uint16_t events)
         }
 #endif
 
+        usb_out_task();
         run_qmk_task();
 
 #if defined(ESB_ENABLE) && (ESB_ENABLE == 2)

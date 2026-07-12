@@ -5,6 +5,8 @@
 
 #pragma once
 
+#include "quantum_keycodes.h"
+
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -16,12 +18,9 @@ typedef enum {
     WIRELESS_MODE_COUNT
 } wireless_mode_t;
 
-// BLE slot definitions (for multi-device pairing)
+// The current BLE transport exposes one selectable bond identity.
 typedef enum {
     BLE_SLOT_0 = 0,
-    BLE_SLOT_1,
-    BLE_SLOT_2,
-    BLE_SLOT_3,
     BLE_SLOT_MAX
 } ble_slot_t;
 
@@ -79,11 +78,8 @@ bool wireless_mode_get_usb_auto(void);
 const char *wireless_mode_name(wireless_mode_t mode);
 const char *wireless_status_name(mode_status_t status);
 
-// Custom keycodes for mode switching
-// Define these in your keymap using these values
-#define WL_USB  0x7C00  // Switch to USB mode
-#define WL_ESB  0x7C01  // Switch to ESB/2.4G mode
-#define WL_BLE0 0x7C10  // Switch to BLE slot 0
-#define WL_BLE1 0x7C11  // Switch to BLE slot 1
-#define WL_BLE2 0x7C12  // Switch to BLE slot 2
-#define WL_BLE3 0x7C13  // Switch to BLE slot 3
+// Preserve the board-reserved VIA keycode ABI. Slots 13..27 remain unused.
+#define WL_USB     (QK_KB_0 + 11)
+#define WL_BLE0    (QK_KB_0 + 12)
+#define WL_ESB     (QK_KB_0 + 28)
+#define WL_BATTERY (QK_KB_0 + 29)

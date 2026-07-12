@@ -21,8 +21,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "quantum.h"
 #endif
 #include <stdbool.h>
-#include "ws2812_tmr2.h"
 #include "wireless_mode.h"
+#ifdef RGB_MATRIX_ENABLE
+#include "ws2812_tmr2.h"
+#endif
 
 #ifndef RGBLED_NUM
 #define RGBLED_NUM 4
@@ -37,7 +39,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define BRIGHTNESS_STEP 10  // 亮度调整步长
 
 // 自定义按键定义
-// 注意：QK_KB_11 = USB模式, QK_KB_12~15 = BLE1~4槽, QK_KB_28 = 2.4G
+// QK_KB_11 = USB, QK_KB_12 = BLE, QK_KB_28 = 2.4G, QK_KB_29 = 电量。
 // 这些值与 wireless_mode.c 中的 process_wireless_keycode() 对应
 enum custom_keycodes {
     KC_BOOTLOADER_JUMP = QK_KB_0,
@@ -52,22 +54,14 @@ enum custom_keycodes {
     KC_BRIGHTNESS_MINUS, // QK_KB_9
     KC_BRIGHTNESS_PLUS,  // QK_KB_10
     // QK_KB_11 = USB mode  (handled by process_wireless_keycode)
-    // QK_KB_12 = BLE slot 0 "BLE1"
-    // QK_KB_13 = BLE slot 1 "BLE2"
-    // QK_KB_14 = BLE slot 2 "BLE3"
-    // QK_KB_15 = BLE slot 3 "BLE4"
-    // QK_KB_28 = ESB/2.4G  (handled by process_wireless_keycode)
+    // QK_KB_12 = BLE slot 0
+    // QK_KB_13..27 are reserved for legacy BLE slot values
+    // QK_KB_28 = ESB/2.4G
+    // QK_KB_29 = battery indicator
 };
 
 // 无线模式快捷键 - 在 Layer 1 中使用
-// WL_USB/WL_BLE0/WL_ESB 定义在 wireless_mode.h 中
-// 也可以用 QK_KB_11, QK_KB_12, QK_KB_28 (与 VIA 自定义键对应)
-#define WL_USB_KEY  (QK_KB_0 + 11)   // USB 模式
-#define WL_BLE1_KEY (QK_KB_0 + 12)   // BLE 设备槽 1
-#define WL_BLE2_KEY (QK_KB_0 + 13)   // BLE 设备槽 2
-#define WL_BLE3_KEY (QK_KB_0 + 14)   // BLE 设备槽 3
-#define WL_BLE4_KEY (QK_KB_0 + 15)   // BLE 设备槽 4
-#define WL_ESB_KEY  (QK_KB_0 + 28)   // 2.4G ESB 模式
+// WL_USB/WL_BLE0/WL_ESB 定义在 wireless_mode.h 中。
 
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     [0] = LAYOUT_all(
@@ -79,8 +73,8 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     ),
     [1] = LAYOUT_all(
         KC_GRV,     KC_F1,      KC_F2,      KC_F3,      KC_F4,   KC_F5,   KC_F6,   KC_F7,   KC_F8,   KC_F9,   KC_F10,  KC_F11,  KC_F12,  KC_DEL,  KC_BOOTLOADER_JUMP,
-        _______,    WL_USB_KEY, WL_BLE1_KEY,WL_ESB_KEY, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,
-        _______,    WL_BLE2_KEY,WL_BLE3_KEY,WL_BLE4_KEY,_______, _______, _______, _______, _______, _______, _______, _______, _______, _______,   _______,
+        _______,    WL_USB,     WL_BLE0,    WL_ESB,     _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,
+        _______,    _______,    _______,    _______,    _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,   _______,
         _______,    _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,   _______,
         _______,    _______, _______, _______, _______,   _______,   _______,   _______,   _______,   _______, _______, _______, _______, _______, _______
     ),
@@ -94,6 +88,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     )
 };
 
+#ifdef RGB_MATRIX_ENABLE
 // 简单的 4灯 RGB 状态：整数RGB(0~10)与亮度(0~100)
 static uint8_t g_r = 4, g_g = 4, g_b = 4, g_brightness = 20; // 默认值
 static bool g_on = true;
@@ -132,6 +127,7 @@ static void adjust_brightness_and_debug(int8_t adjustment) {
     SEND_STRING(buf);
 #endif
 }
+#endif
 
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     // 优先处理无线模式切换按键（USB/BLE/2.4G）
@@ -142,6 +138,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     if (!record->event.pressed) return true;
     switch (keycode) {
         case KC_BOOTLOADER_JUMP: bootloader_jump(); return false;
+#ifdef RGB_MATRIX_ENABLE
         case KC_RGB_DEBUG:
 #if DEBUG
             {
@@ -161,6 +158,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         case KC_RGB_B_PLUS:        adjust_rgb_and_debug(2,  RGB_STEP); return false;
         case KC_BRIGHTNESS_MINUS:  adjust_brightness_and_debug(-BRIGHTNESS_STEP); return false;
         case KC_BRIGHTNESS_PLUS:   adjust_brightness_and_debug( BRIGHTNESS_STEP); return false;
+#endif
     }
     return true;
 }

@@ -12,6 +12,7 @@ static uint8_t hidPropsRead = GATT_PROP_READ;
 static uint8_t hidPropsWrite = GATT_PROP_WRITE_NO_RSP;
 static uint8_t hidPropsReadNotify = GATT_PROP_READ | GATT_PROP_NOTIFY;
 static uint8_t hidPropsReadWriteWithoutAuth = GATT_PROP_READ | GATT_PROP_WRITE_NO_RSP;
+static uint8_t hidPropsReportOutput = GATT_PROP_READ | GATT_PROP_WRITE | GATT_PROP_WRITE_NO_RSP;
 
 // HID Report Map
 static const uint8_t hidReportMap[] = {
@@ -42,10 +43,10 @@ static const uint8_t hidReportMap[] = {
     0x95, 0x06, //   Report Count (6)
     0x75, 0x08, //   Report Size (8)
     0x15, 0x00, //   Logical Minimum (0)
-    0x25, 0x65, //   Logical Maximum (101)
+    0x26, 0xFF, 0x00, // Logical Maximum (255)
     0x05, 0x07, //   Usage Page (Kbrd/Keypad)
     0x19, 0x00, //   Usage Minimum (0x00)
-    0x29, 0x65, //   Usage Maximum (0x65)
+    0x29, 0xFF, //   Usage Maximum (0xFF)
     0x81, 0x00, //   Input (Data,Array,Abs,No Wrap,Linear,Preferred State,No Null Position)
     0xC0,       // End Collection
 
@@ -58,15 +59,12 @@ static const uint8_t hidReportMap[] = {
     0xA1, 0x00, //   Collection (Physical)
     0x05, 0x09, //     Usage Page (Button)
     0x19, 0x01, //     Usage Minimum (0x01)
-    0x29, 0x05, //     Usage Maximum (0x05)
+    0x29, 0x08, //     Usage Maximum (0x08)
     0x15, 0x00, //     Logical Minimum (0)
     0x25, 0x01, //     Logical Maximum (1)
-    0x95, 0x05, //     Report Count (5)
+    0x95, 0x08, //     Report Count (8)
     0x75, 0x01, //     Report Size (1)
     0x81, 0x02, //     Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
-    0x95, 0x01, //     Report Count (1)
-    0x75, 0x03, //     Report Size (3)
-    0x81, 0x03, //     Input (Const,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
     0x05, 0x01, //     Usage Page (Generic Desktop Ctrls)
     0x09, 0x30, //     Usage (X)
     0x09, 0x31, //     Usage (Y)
@@ -76,6 +74,13 @@ static const uint8_t hidReportMap[] = {
     0x75, 0x08, //     Report Size (8)
     0x95, 0x03, //     Report Count (3)
     0x81, 0x06, //     Input (Data,Var,Rel,No Wrap,Linear,Preferred State,No Null Position)
+    0x05, 0x0C, //     Usage Page (Consumer)
+    0x0A, 0x38, 0x02, // Usage (AC Pan)
+    0x15, 0x81, //     Logical Minimum (-127)
+    0x25, 0x7F, //     Logical Maximum (127)
+    0x75, 0x08, //     Report Size (8)
+    0x95, 0x01, //     Report Count (1)
+    0x81, 0x06, //     Input (Data,Var,Rel)
     0xC0,       //   End Collection
     0xC0,       // End Collection
 
@@ -98,21 +103,19 @@ static const uint8_t hidReportMap[] = {
     0x09, 0x80, // Usage (System Control)
     0xA1, 0x01, // Collection (Application)
     0x85, HID_RPT_ID_SYSTEM_IN, //   Report ID (4)
-    0x19, 0x81, //   Usage Minimum (System Power Down)
-    0x29, 0x83, //   Usage Maximum (System Wake Up)
-    0x15, 0x00, //   Logical Minimum (0)
-    0x25, 0x01, //   Logical Maximum (1)
-    0x95, 0x03, //   Report Count (3)
-    0x75, 0x01, //   Report Size (1)
-    0x81, 0x02, //   Input (Data,Var,Abs)
+    0x19, 0x01, //   Usage Minimum
+    0x2A, 0xB7, 0x00, // Usage Maximum
+    0x15, 0x01, //   Logical Minimum
+    0x26, 0xB7, 0x00, // Logical Maximum
     0x95, 0x01, //   Report Count (1)
-    0x75, 0x05, //   Report Size (5)
-    0x81, 0x03, //   Input (Const,Var,Abs) - Padding
+    0x75, 0x10, //   Report Size (16)
+    0x81, 0x00, //   Input (Data,Array,Abs)
     0xC0,       // End Collection
 };
 
 // HID Service Attributes
 static const uint8_t hidServiceUUID[ATT_BT_UUID_SIZE] = { LO_UINT16(HID_SERV_UUID), HI_UINT16(HID_SERV_UUID) };
+static const gattAttrType_t hidService = { ATT_BT_UUID_SIZE, hidServiceUUID };
 // includeUUID is extern in CH58xBLE_LIB.H
 static const uint8_t hidInfoUUID[ATT_BT_UUID_SIZE] = { LO_UINT16(HID_INFORMATION_UUID), HI_UINT16(HID_INFORMATION_UUID) };
 static const uint8_t hidControlPointUUID[ATT_BT_UUID_SIZE] = { LO_UINT16(HID_CTRL_PT_UUID), HI_UINT16(HID_CTRL_PT_UUID) };
@@ -129,6 +132,7 @@ static const uint8_t hidBootKeyOutputUUID[ATT_BT_UUID_SIZE] = { LO_UINT16(BOOT_K
 static uint8_t hidProtocolMode = HID_PROTOCOL_MODE_REPORT;
 static uint8_t hidControlPoint;
 static gattCharCfg_t hidReportKeyInClientCharCfg[GATT_MAX_NUM_CONN];
+static gattCharCfg_t hidReportBootKeyInClientCharCfg[GATT_MAX_NUM_CONN];
 static gattCharCfg_t hidReportMouseInClientCharCfg[GATT_MAX_NUM_CONN];
 static gattCharCfg_t hidReportConsumerInClientCharCfg[GATT_MAX_NUM_CONN];
 static gattCharCfg_t hidReportSystemInClientCharCfg[GATT_MAX_NUM_CONN];
@@ -136,18 +140,19 @@ static uint8_t hidReportKeyIn[8];
 static uint8_t hidReportKeyOut[1];
 static uint8_t hidReportMouseIn[5];
 static uint8_t hidReportConsumerIn[2];
-static uint8_t hidReportSystemIn[1];
+static uint8_t hidReportSystemIn[2];
 static uint8_t hidReportRefKeyIn[] = { HID_RPT_ID_KEYBOARD_IN, HID_REPORT_TYPE_INPUT };
 static uint8_t hidReportRefKeyOut[] = { HID_RPT_ID_KEYBOARD_OUT, HID_REPORT_TYPE_OUTPUT };
 static uint8_t hidReportRefMouseIn[] = { HID_RPT_ID_MOUSE_IN, HID_REPORT_TYPE_INPUT };
 static uint8_t hidReportRefConsumerIn[] = { HID_RPT_ID_CONSUMER_IN, HID_REPORT_TYPE_INPUT };
 static uint8_t hidReportRefSystemIn[] = { HID_RPT_ID_SYSTEM_IN, HID_REPORT_TYPE_INPUT };
+static bool hidConnectionSecure;
 
 // HID Information
 static const uint8_t hidInfo[] = {
     LO_UINT16(0x0111), HI_UINT16(0x0111), // bcdHID (USB HID version 1.11)
     0x00,                                 // bCountryCode
-    HID_FLAGS_REMOTE_WAKE                 // Flags
+    0x00                                  // Flags
 };
 
 // GATT Attribute Table
@@ -156,7 +161,7 @@ static gattAttribute_t hidAttrTbl[] = {
     { { ATT_BT_UUID_SIZE, primaryServiceUUID }, /* type */
       GATT_PERMIT_READ,                         /* permissions */
       0,                                        /* handle */
-      (uint8_t *)&hidServiceUUID                /* pValue */
+      (uint8_t *)&hidService                    /* pValue */
     },
 
     // HID Information Declaration
@@ -167,7 +172,7 @@ static gattAttribute_t hidAttrTbl[] = {
     },
     // HID Information Value
     { { ATT_BT_UUID_SIZE, hidInfoUUID },
-      GATT_PERMIT_READ,
+      GATT_PERMIT_ENCRYPT_READ,
       0,
       (uint8_t *)hidInfo
     },
@@ -180,7 +185,7 @@ static gattAttribute_t hidAttrTbl[] = {
     },
     // HID Control Point Value
     { { ATT_BT_UUID_SIZE, hidControlPointUUID },
-      GATT_PERMIT_WRITE,
+      GATT_PERMIT_ENCRYPT_WRITE,
       0,
       &hidControlPoint
     },
@@ -193,7 +198,7 @@ static gattAttribute_t hidAttrTbl[] = {
     },
     // HID Protocol Mode Value
     { { ATT_BT_UUID_SIZE, hidProtocolModeUUID },
-      GATT_PERMIT_READ | GATT_PERMIT_WRITE,
+      GATT_PERMIT_ENCRYPT_READ | GATT_PERMIT_ENCRYPT_WRITE,
       0,
       &hidProtocolMode
     },
@@ -206,7 +211,7 @@ static gattAttribute_t hidAttrTbl[] = {
     },
     // HID Report Map Value
     { { ATT_BT_UUID_SIZE, hidReportMapUUID },
-      GATT_PERMIT_READ,
+      GATT_PERMIT_ENCRYPT_READ,
       0,
       (uint8_t *)hidReportMap
     },
@@ -218,13 +223,13 @@ static gattAttribute_t hidAttrTbl[] = {
     },
     // HID Report Keyboard Input Value
     { { ATT_BT_UUID_SIZE, hidReportUUID },
-      GATT_PERMIT_READ,
+      GATT_PERMIT_ENCRYPT_READ,
       0,
       hidReportKeyIn
     },
     // HID Report Keyboard Input Client Characteristic Configuration
     { { ATT_BT_UUID_SIZE, clientCharCfgUUID },
-      GATT_PERMIT_READ | GATT_PERMIT_WRITE,
+      GATT_PERMIT_READ | GATT_PERMIT_ENCRYPT_WRITE,
       0,
       (uint8_t *)&hidReportKeyInClientCharCfg
     },
@@ -239,11 +244,11 @@ static gattAttribute_t hidAttrTbl[] = {
     { { ATT_BT_UUID_SIZE, characterUUID },
       GATT_PERMIT_READ,
       0,
-      &hidPropsReadWriteWithoutAuth
+      &hidPropsReportOutput
     },
     // HID Report Keyboard Output Value
     { { ATT_BT_UUID_SIZE, hidReportUUID },
-      GATT_PERMIT_READ | GATT_PERMIT_WRITE,
+      GATT_PERMIT_ENCRYPT_READ | GATT_PERMIT_ENCRYPT_WRITE,
       0,
       hidReportKeyOut
     },
@@ -262,13 +267,13 @@ static gattAttribute_t hidAttrTbl[] = {
     },
     // HID Report Mouse Input Value
     { { ATT_BT_UUID_SIZE, hidReportUUID },
-      GATT_PERMIT_READ,
+      GATT_PERMIT_ENCRYPT_READ,
       0,
       hidReportMouseIn
     },
     // HID Report Mouse Input Client Characteristic Configuration
     { { ATT_BT_UUID_SIZE, clientCharCfgUUID },
-      GATT_PERMIT_READ | GATT_PERMIT_WRITE,
+      GATT_PERMIT_READ | GATT_PERMIT_ENCRYPT_WRITE,
       0,
       (uint8_t *)&hidReportMouseInClientCharCfg
     },
@@ -287,13 +292,13 @@ static gattAttribute_t hidAttrTbl[] = {
     },
     // HID Report Consumer Input Value
     { { ATT_BT_UUID_SIZE, hidReportUUID },
-      GATT_PERMIT_READ,
+      GATT_PERMIT_ENCRYPT_READ,
       0,
       hidReportConsumerIn
     },
     // HID Report Consumer Input Client Characteristic Configuration
     { { ATT_BT_UUID_SIZE, clientCharCfgUUID },
-      GATT_PERMIT_READ | GATT_PERMIT_WRITE,
+      GATT_PERMIT_READ | GATT_PERMIT_ENCRYPT_WRITE,
       0,
       (uint8_t *)&hidReportConsumerInClientCharCfg
     },
@@ -312,13 +317,13 @@ static gattAttribute_t hidAttrTbl[] = {
     },
     // HID Report System Input Value
     { { ATT_BT_UUID_SIZE, hidReportUUID },
-      GATT_PERMIT_READ,
+      GATT_PERMIT_ENCRYPT_READ,
       0,
       hidReportSystemIn
     },
     // HID Report System Input Client Characteristic Configuration
     { { ATT_BT_UUID_SIZE, clientCharCfgUUID },
-      GATT_PERMIT_READ | GATT_PERMIT_WRITE,
+      GATT_PERMIT_READ | GATT_PERMIT_ENCRYPT_WRITE,
       0,
       (uint8_t *)&hidReportSystemInClientCharCfg
     },
@@ -337,26 +342,26 @@ static gattAttribute_t hidAttrTbl[] = {
     },
     // Boot Keyboard Input Value
     { { ATT_BT_UUID_SIZE, hidBootKeyInputUUID },
-      GATT_PERMIT_READ,
+      GATT_PERMIT_ENCRYPT_READ,
       0,
       hidReportKeyIn
     },
     // Boot Keyboard Input Client Characteristic Configuration
     { { ATT_BT_UUID_SIZE, clientCharCfgUUID },
-      GATT_PERMIT_READ | GATT_PERMIT_WRITE,
+      GATT_PERMIT_READ | GATT_PERMIT_ENCRYPT_WRITE,
       0,
-      (uint8_t *)&hidReportKeyInClientCharCfg
+      (uint8_t *)&hidReportBootKeyInClientCharCfg
     },
 
     // Boot Keyboard Output Declaration
     { { ATT_BT_UUID_SIZE, characterUUID },
       GATT_PERMIT_READ,
       0,
-      &hidPropsReadWriteWithoutAuth
+      &hidPropsReportOutput
     },
     // Boot Keyboard Output Value
     { { ATT_BT_UUID_SIZE, hidBootKeyOutputUUID },
-      GATT_PERMIT_READ | GATT_PERMIT_WRITE,
+      GATT_PERMIT_ENCRYPT_READ | GATT_PERMIT_ENCRYPT_WRITE,
       0,
       hidReportKeyOut
     },
@@ -370,6 +375,12 @@ gattServiceCBs_t hidDevCBs = {
 };
 
 bStatus_t HidDev_AddService(void) {
+    GATTServApp_InitCharCfg(INVALID_CONNHANDLE, hidReportKeyInClientCharCfg);
+    GATTServApp_InitCharCfg(INVALID_CONNHANDLE, hidReportBootKeyInClientCharCfg);
+    GATTServApp_InitCharCfg(INVALID_CONNHANDLE, hidReportMouseInClientCharCfg);
+    GATTServApp_InitCharCfg(INVALID_CONNHANDLE, hidReportConsumerInClientCharCfg);
+    GATTServApp_InitCharCfg(INVALID_CONNHANDLE, hidReportSystemInClientCharCfg);
+
     // Register GATT attribute list and CBs with GATT Server App
     return GATTServApp_RegisterService(hidAttrTbl,
                                        GATT_NUM_ATTRS(hidAttrTbl),
@@ -382,23 +393,49 @@ bStatus_t HidDev_Report(uint8_t id, uint8_t type, uint8_t len, uint8_t *pData) {
     if (hidConnHandle == GAP_CONNHANDLE_INIT) {
         return bleNotConnected;
     }
+    if (!hidConnectionSecure) {
+        return bleNotReady;
+    }
+    if (hidProtocolMode == HID_PROTOCOL_MODE_BOOT && id != HID_RPT_ID_KEYBOARD_IN) {
+        return bleIncorrectMode;
+    }
 
     // Find the characteristic handle based on Report ID and Type
-    uint16_t handle = 0;
+    uint16_t       handle = 0;
+    gattCharCfg_t *clientConfig = NULL;
+    uint8_t       *storedReport = NULL;
+    uint8_t        storedLength = 0;
 
     if (type == HID_REPORT_TYPE_INPUT) {
         switch (id) {
             case HID_RPT_ID_KEYBOARD_IN:
-                handle = hidAttrTbl[HID_REPORT_KEYBOARD_IN_IDX].handle;
+                if (hidProtocolMode == HID_PROTOCOL_MODE_BOOT) {
+                    handle       = hidAttrTbl[HID_BOOT_KEYBOARD_IN_IDX].handle;
+                    clientConfig = hidReportBootKeyInClientCharCfg;
+                } else {
+                    handle       = hidAttrTbl[HID_REPORT_KEYBOARD_IN_IDX].handle;
+                    clientConfig = hidReportKeyInClientCharCfg;
+                }
+                storedReport = hidReportKeyIn;
+                storedLength = sizeof(hidReportKeyIn);
                 break;
             case HID_RPT_ID_MOUSE_IN:
-                handle = hidAttrTbl[HID_REPORT_MOUSE_IN_IDX].handle;
+                handle       = hidAttrTbl[HID_REPORT_MOUSE_IN_IDX].handle;
+                clientConfig = hidReportMouseInClientCharCfg;
+                storedReport = hidReportMouseIn;
+                storedLength = sizeof(hidReportMouseIn);
                 break;
             case HID_RPT_ID_CONSUMER_IN:
-                handle = hidAttrTbl[HID_REPORT_CONSUMER_IN_IDX].handle;
+                handle       = hidAttrTbl[HID_REPORT_CONSUMER_IN_IDX].handle;
+                clientConfig = hidReportConsumerInClientCharCfg;
+                storedReport = hidReportConsumerIn;
+                storedLength = sizeof(hidReportConsumerIn);
                 break;
             case HID_RPT_ID_SYSTEM_IN:
-                handle = hidAttrTbl[HID_REPORT_SYSTEM_IN_IDX].handle;
+                handle       = hidAttrTbl[HID_REPORT_SYSTEM_IN_IDX].handle;
+                clientConfig = hidReportSystemInClientCharCfg;
+                storedReport = hidReportSystemIn;
+                storedLength = sizeof(hidReportSystemIn);
                 break;
             default:
                 return INVALIDPARAMETER;
@@ -407,7 +444,17 @@ bStatus_t HidDev_Report(uint8_t id, uint8_t type, uint8_t len, uint8_t *pData) {
         return INVALIDPARAMETER;
     }
 
-    if (handle != 0) {
+    if (handle != 0 && clientConfig != NULL) {
+        if (len != storedLength) {
+            return INVALIDPARAMETER;
+        }
+        if ((GATTServApp_ReadCharCfg(hidConnHandle, clientConfig) & GATT_CLIENT_CFG_NOTIFY) == 0) {
+            return bleNotReady;
+        }
+        if (storedReport != NULL) {
+            tmos_memcpy(storedReport, pData, MIN(len, storedLength));
+        }
+
         attHandleValueNoti_t noti;
         noti.handle = handle;
         noti.len = len;
@@ -430,16 +477,37 @@ bStatus_t HidDev_Report(uint8_t id, uint8_t type, uint8_t len, uint8_t *pData) {
 uint8_t HidDev_ReadAttrCB(uint16_t connHandle, gattAttribute_t *pAttr,
                           uint8_t *pValue, uint16_t *pLen, uint16_t offset,
                           uint16_t maxLen, uint8_t method) {
+    (void)connHandle;
+    (void)method;
+
     bStatus_t status = SUCCESS;
     uint16_t uuid = BUILD_UINT16(pAttr->type.uuid[0], pAttr->type.uuid[1]);
 
+    if (offset > 0 && uuid != REPORT_MAP_UUID) {
+        return ATT_ERR_ATTR_NOT_LONG;
+    }
+
     if (uuid == REPORT_UUID) {
-        // Read report
-        *pLen = 1; // Dummy length
-        pValue[0] = 0;
+        uint16_t reportLen = 0;
+        if (pAttr->pValue == hidReportKeyIn) {
+            reportLen = sizeof(hidReportKeyIn);
+        } else if (pAttr->pValue == hidReportKeyOut) {
+            reportLen = sizeof(hidReportKeyOut);
+        } else if (pAttr->pValue == hidReportMouseIn) {
+            reportLen = sizeof(hidReportMouseIn);
+        } else if (pAttr->pValue == hidReportConsumerIn) {
+            reportLen = sizeof(hidReportConsumerIn);
+        } else if (pAttr->pValue == hidReportSystemIn) {
+            reportLen = sizeof(hidReportSystemIn);
+        }
+        *pLen = MIN(maxLen, reportLen);
+        tmos_memcpy(pValue, pAttr->pValue, *pLen);
+    } else if (uuid == BOOT_KEY_INPUT_UUID || uuid == BOOT_KEY_OUTPUT_UUID) {
+        uint16_t reportLen = uuid == BOOT_KEY_INPUT_UUID ? sizeof(hidReportKeyIn) : sizeof(hidReportKeyOut);
+        *pLen = MIN(maxLen, reportLen);
+        tmos_memcpy(pValue, pAttr->pValue, *pLen);
     } else if (uuid == REPORT_MAP_UUID) {
-        // Read report map
-        if (offset > sizeof(hidReportMap)) {
+        if (offset >= sizeof(hidReportMap)) {
             return ATT_ERR_INVALID_OFFSET;
         }
         *pLen = MIN(maxLen, sizeof(hidReportMap) - offset);
@@ -450,6 +518,9 @@ uint8_t HidDev_ReadAttrCB(uint16_t connHandle, gattAttribute_t *pAttr,
     } else if (uuid == PROTOCOL_MODE_UUID) {
         *pLen = 1;
         pValue[0] = hidProtocolMode;
+    } else if (uuid == GATT_REPORT_REF_UUID) {
+        *pLen = MIN(maxLen, (uint16_t)2);
+        tmos_memcpy(pValue, pAttr->pValue, *pLen);
     } else {
         status = ATT_ERR_ATTR_NOT_FOUND;
     }
@@ -460,19 +531,39 @@ uint8_t HidDev_ReadAttrCB(uint16_t connHandle, gattAttribute_t *pAttr,
 bStatus_t HidDev_WriteAttrCB(uint16_t connHandle, gattAttribute_t *pAttr,
                              uint8_t *pValue, uint16_t len, uint16_t offset,
                              uint8_t method) {
+    (void)method;
+
+    if (offset > 0) {
+        return ATT_ERR_ATTR_NOT_LONG;
+    }
+
     bStatus_t status = SUCCESS;
     uint16_t uuid = BUILD_UINT16(pAttr->type.uuid[0], pAttr->type.uuid[1]);
 
     if (uuid == REPORT_UUID) {
-        // Write report (LEDs)
-        if (len > 0) {
+        if (pAttr->pValue == hidReportKeyOut && len == sizeof(hidReportKeyOut)) {
             hidReportKeyOut[0] = pValue[0];
-            // Update global LED state if necessary
+        } else {
+            status = ATT_ERR_INVALID_VALUE_SIZE;
+        }
+    } else if (uuid == BOOT_KEY_OUTPUT_UUID) {
+        if (len == sizeof(hidReportKeyOut)) {
+            hidReportKeyOut[0] = pValue[0];
+        } else {
+            status = ATT_ERR_INVALID_VALUE_SIZE;
         }
     } else if (uuid == HID_CTRL_PT_UUID) {
-        hidControlPoint = pValue[0];
+        if (len == 1 && pValue[0] <= 1) {
+            hidControlPoint = pValue[0];
+        } else {
+            status = ATT_ERR_INVALID_VALUE;
+        }
     } else if (uuid == PROTOCOL_MODE_UUID) {
-        hidProtocolMode = pValue[0];
+        if (len == 1 && (pValue[0] == HID_PROTOCOL_MODE_BOOT || pValue[0] == HID_PROTOCOL_MODE_REPORT)) {
+            hidProtocolMode = pValue[0];
+        } else {
+            status = ATT_ERR_INVALID_VALUE;
+        }
     } else if (uuid == GATT_CLIENT_CHAR_CFG_UUID) {
         status = GATTServApp_ProcessCCCWriteReq(connHandle, pAttr, pValue, len, offset, GATT_CLIENT_CFG_NOTIFY);
     } else {
@@ -487,7 +578,20 @@ bStatus_t HidDev_WriteAttrCB(uint16_t connHandle, gattAttribute_t *pAttr,
 // ============================================================================
 
 void HidDev_SetConnHandle(uint16_t connHandle) {
+    if (connHandle == GAP_CONNHANDLE_INIT && hidConnHandle != GAP_CONNHANDLE_INIT) {
+        GATTServApp_InitCharCfg(hidConnHandle, hidReportKeyInClientCharCfg);
+        GATTServApp_InitCharCfg(hidConnHandle, hidReportBootKeyInClientCharCfg);
+        GATTServApp_InitCharCfg(hidConnHandle, hidReportMouseInClientCharCfg);
+        GATTServApp_InitCharCfg(hidConnHandle, hidReportConsumerInClientCharCfg);
+        GATTServApp_InitCharCfg(hidConnHandle, hidReportSystemInClientCharCfg);
+        hidProtocolMode = HID_PROTOCOL_MODE_REPORT;
+    }
     hidConnHandle = connHandle;
+    hidConnectionSecure = false;
+}
+
+void HidDev_SetSecure(bool secure) {
+    hidConnectionSecure = secure;
 }
 
 uint8_t HidDev_GetKeyboardLeds(void) {

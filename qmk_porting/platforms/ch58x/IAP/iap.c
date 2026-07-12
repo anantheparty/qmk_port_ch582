@@ -173,7 +173,8 @@ __HIGH_CODE void board_flash_write(uint32_t addr, void const *data, uint32_t len
     uint8_t handle_data[len];
 
     my_memcpy(handle_data, data, len);
-#if defined BLE_ENABLE || (defined ESB_ENABLE && (ESB_ENABLE == 1 || ESB_ENABLE == 2))
+#if (defined BLE_ENABLE || (defined ESB_ENABLE && (ESB_ENABLE == 1 || ESB_ENABLE == 2))) && \
+    !defined CH58X_DISABLE_WIRELESS_IAP_HOOKS
     extern void iap_handle_data(uint32_t start_address, uint8_t * data, uint32_t len);
 
     iap_handle_data(addr, handle_data, len);
@@ -274,7 +275,8 @@ __HIGH_CODE _PUTCHAR_CLAIM;
 
 __HIGH_CODE static void iap_handle_new_chip()
 {
-#if defined BLE_ENABLE || (defined ESB_ENABLE && (ESB_ENABLE == 1 || ESB_ENABLE == 2))
+#if (defined BLE_ENABLE || (defined ESB_ENABLE && (ESB_ENABLE == 1 || ESB_ENABLE == 2))) && \
+    !defined CH58X_DISABLE_WIRELESS_IAP_HOOKS
     extern void iap_handle_new_wireless_chip();
 
     iap_handle_new_wireless_chip();
@@ -287,7 +289,8 @@ __HIGH_CODE static void iap_jump_app(uint8_t need_cleanup)
 {
     uint32_t jump_address = 0;
 
-#if defined BLE_ENABLE || (defined ESB_ENABLE && (ESB_ENABLE == 1 || ESB_ENABLE == 2))
+#if (defined BLE_ENABLE || (defined ESB_ENABLE && (ESB_ENABLE == 1 || ESB_ENABLE == 2))) && \
+    !defined CH58X_DISABLE_WIRELESS_IAP_HOOKS
     extern bool iap_validate(uint32_t * address);
 
     if (iap_validate(&jump_address)) {

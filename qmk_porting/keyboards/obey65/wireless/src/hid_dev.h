@@ -13,6 +13,13 @@
 #define HID_RPT_ID_SYSTEM_IN    4
 #define HID_RPT_ID_KEYBOARD_OUT 1
 
+#ifndef HID_PROTOCOL_MODE_BOOT
+#    define HID_PROTOCOL_MODE_BOOT 0x00
+#endif
+#ifndef HID_PROTOCOL_MODE_REPORT
+#    define HID_PROTOCOL_MODE_REPORT 0x01
+#endif
+
 // Attribute Handles - HID Service
 enum {
     HID_SERVICE_IDX,
@@ -63,5 +70,5 @@ bStatus_t HidDev_WriteAttrCB(uint16_t connHandle, gattAttribute_t *pAttr,
 
 // Connection and state management
 void HidDev_SetConnHandle(uint16_t connHandle);
+void HidDev_SetSecure(bool secure);
 uint8_t HidDev_GetKeyboardLeds(void);
-

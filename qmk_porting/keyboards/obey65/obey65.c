@@ -25,6 +25,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "wireless_mode.h"
 #include "power_mode.h"
 #include "status_indicator.h"
+#include "obey65_diagnostics.h"
 #include "bootloader.h"
 
 #ifndef LED_CAPS_LOCK_PIN
@@ -102,21 +103,26 @@ bool led_update_kb(led_t led_state)
 
 void keyboard_post_init_kb(void)
 {
-    // Test: init only, no task functions
     wireless_mode_init();
     power_mode_init();
+#ifdef RGB_MATRIX_ENABLE
     status_indicator_init();
+#endif
     keyboard_post_init_user();
 }
 
 void housekeeping_task_kb(void)
 {
+    obey65_diagnostics_task();
     power_mode_task();
     wireless_mode_task();
+#ifdef RGB_MATRIX_ENABLE
     status_indicator_task();
+#endif
     housekeeping_task_user();
 }
 
+#ifdef RGB_MATRIX_ENABLE
 void ws2812_init(void)
 {
     tmr2_ws2812_init();
@@ -134,6 +140,7 @@ void ws2812_setleds(rgb_led_t *ledarray, uint16_t leds)
         tmr1_ws2812_update_index(i, led);
     }
 }
+#endif
 
 int main()
 {
@@ -142,23 +149,19 @@ int main()
     extern void protocol_post_init();
     extern void platform_run();
 
-    // Validate EEPROM boot mode before platform_setup() selects it.
-    // On first boot or after EEPROM corruption, default to USB mode.
-    {
-        uint8_t mode = bootloader_boot_mode_get();
-        if (mode != BOOTLOADER_BOOT_MODE_USB &&
-            mode != BOOTLOADER_BOOT_MODE_BLE &&
-            mode != BOOTLOADER_BOOT_MODE_ESB) {
-            bootloader_boot_mode_set(BOOTLOADER_BOOT_MODE_USB);
-        }
-    }
-
     platform_setup();
 
     // Initialize debug UART early (if enabled)
     DEBUG_INIT();
     DEBUG_PRINT("Obey65 firmware starting...\r\n");
 
+#if defined(OBEY65_BLE_SMOKE_TEST) || defined(OBEY65_BLE_NO_QMK_TEST)
+    // platform_setup() has already initialized BLE and registered its TMOS task.
+    // Do not initialize QMK, VIA, the matrix, or either WS2812 timer here.
+    for (;;) {
+        platform_run();
+    }
+#else
     protocol_setup();
 #if !defined ESB_ENABLE || ESB_ENABLE != 2
     keyboard_setup();
@@ -191,4 +194,5 @@ int main()
         platform_run();
         //! housekeeping_task() is handled by platform
     }
+#endif
 }

@@ -31,6 +31,28 @@ bool bootmagic_allow_jump()
     return true;
 }
 
+bool bootloader_boot_mode_is_enabled(uint8_t mode)
+{
+    switch (mode) {
+        case BOOTLOADER_BOOT_MODE_IAP:
+            return true;
+#ifdef USB_ENABLE
+        case BOOTLOADER_BOOT_MODE_USB:
+            return true;
+#endif
+#ifdef BLE_ENABLE
+        case BOOTLOADER_BOOT_MODE_BLE:
+            return true;
+#endif
+#ifdef ESB_ENABLE
+        case BOOTLOADER_BOOT_MODE_ESB:
+            return true;
+#endif
+        default:
+            return false;
+    }
+}
+
 void bootmagic_reset_eeprom(void)
 {
     if (!bootmagic_allow_jump()) {
@@ -47,17 +69,7 @@ void bootloader_boot_mode_set(uint8_t mode)
         PRINT("Invalid mode select, will ignore.\n");
         return;
     }
-    if (0
-#ifndef USB_ENABLE
-        || (mode == BOOTLOADER_BOOT_MODE_USB)
-#endif
-#ifndef BLE_ENABLE
-        || (mode == BOOTLOADER_BOOT_MODE_BLE)
-#endif
-#ifndef ESB_ENABLE
-        || (mode == BOOTLOADER_BOOT_MODE_ESB)
-#endif
-    ) {
+    if (!bootloader_boot_mode_is_enabled(mode)) {
         PRINT("Mode %d is not enabled, will ignore.\n", mode);
         return;
     }
@@ -93,9 +105,14 @@ void bootloader_select_boot_mode()
         PRINT("Fatal: Boot mode tampering detected!\n");
         WAIT_FOR_DBG;
         __builtin_trap();
-    } else
+    } else if ((mode == BOOTLOADER_BOOT_MODE_USB || mode == BOOTLOADER_BOOT_MODE_BLE ||
+                mode == BOOTLOADER_BOOT_MODE_ESB) &&
+               !bootloader_boot_mode_is_enabled(mode)) {
+        mode = bootloader_set_to_default_mode("Stored mode is unavailable in this build");
+    }
+
 #if !defined ESB_ENABLE || ESB_ENABLE == 1
-        if (mode == BOOTLOADER_BOOT_MODE_USB) {
+    if (mode == BOOTLOADER_BOOT_MODE_USB) {
 #ifdef POWER_DETECT_PIN
         if (!gpio_read_pin(POWER_DETECT_PIN)) {
             PRINT("Cable not connected, USB mode is disabled.\n");
@@ -112,7 +129,7 @@ void bootloader_select_boot_mode()
 #endif
     }
 #else
-        if (mode != BOOTLOADER_BOOT_MODE_ESB) {
+    if (mode != BOOTLOADER_BOOT_MODE_ESB) {
         PRINT("Dongle has fixed mode, will correct.\n");
         mode = BOOTLOADER_BOOT_MODE_ESB;
     }
